@@ -10,14 +10,30 @@ const HOME = os.homedir();
 
 async function countMemory(): Promise<number> {
   let n = 0;
+  // Root system files
   const roots = ["MEMORY.md","AGENTS.md","SOUL.md","USER.md","TOOLS.md","IDENTITY.md","HEARTBEAT.md"];
   for (const f of roots) {
     try { await readFile(join(HOME, ".openclaw/workspace", f)); n++; } catch {}
   }
+  // Daily + topic files in memory/
   try {
     const daily = await readdir(join(HOME, ".openclaw/workspace/memory"));
     n += daily.filter(f => f.endsWith(".md")).length;
   } catch {}
+  // Skill SKILL.md files (shown in memory page)
+  const skillRoots = [
+    join(HOME, ".openclaw/workspace/skills"),
+    "/opt/homebrew/lib/node_modules/openclaw/skills",
+    join(HOME, ".openclaw/extensions"),
+  ];
+  for (const base of skillRoots) {
+    try {
+      const items = await readdir(base);
+      for (const item of items) {
+        try { await readFile(join(base, item, "SKILL.md")); n++; } catch {}
+      }
+    } catch {}
+  }
   return n;
 }
 
@@ -25,7 +41,7 @@ async function countCalendar(): Promise<number> {
   try {
     const raw = await readFile(join(HOME, ".openclaw/cron/jobs.json"), "utf-8");
     const { jobs } = JSON.parse(raw);
-    return jobs.filter((j: any) => j.enabled).length;
+    return Array.isArray(jobs) ? jobs.length : 0;
   } catch { return 0; }
 }
 

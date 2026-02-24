@@ -233,7 +233,7 @@ export default function ScheduledPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <code className="text-xs bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded border border-gray-200 dark:border-gray-700">
+                        <code className="text-xs whitespace-nowrap bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded border border-gray-200 dark:border-gray-700">
                           {task.schedule}
                         </code>
                       </TableCell>

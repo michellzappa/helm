@@ -42,7 +42,7 @@ const MENU_ITEMS: {
   countKey?: keyof SidebarCounts;
 }[] = [
   { href: "/",               label: "Dashboard",      icon: LayoutDashboard },
-  { href: "/agents",         label: "Agents",         icon: Bot                                  },
+  { href: "/agents",         label: "Agents",         icon: Bot,         countKey: "agents"      },
   { href: "/channels",       label: "Channels",       icon: Radio,       countKey: "channels"    },
   { href: "/credentials",    label: "Credentials",    icon: KeyRound,    countKey: "credentials" },
   { href: "/delivery",       label: "Delivery",       icon: Send,        countKey: "deliveryQueue" },
@@ -102,6 +102,27 @@ function LayoutInner({
         </SidebarHeader>
 
         <SidebarContent>
+          {/* ⌘K search */}
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Search (⌘K)"
+                    onClick={() => setCmdOpen(true)}
+                    className="text-muted-foreground"
+                  >
+                    <Search className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 group-data-[collapsible=icon]:hidden">Search…</span>
+                    <kbd className="group-data-[collapsible=icon]:hidden text-[10px] font-medium bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-1 py-0.5 leading-none">
+                      ⌘K
+                    </kbd>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
           <SidebarGroup>
             <SidebarGroupLabel>System</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -169,17 +190,6 @@ function LayoutInner({
           </SidebarTrigger>
           <span className="text-sm font-semibold md:hidden">Helm</span>
           <div className="flex-1" />
-          {/* ⌘K / search */}
-          <button
-            onClick={() => setCmdOpen(true)}
-            className="flex items-center gap-2 text-xs text-muted-foreground bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md px-2.5 py-1.5 transition-colors"
-          >
-            <Search className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Search…</span>
-            <kbd className="hidden sm:inline ml-1 pointer-events-none text-[10px] font-medium bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5">
-              ⌘K
-            </kbd>
-          </button>
         </div>
 
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">

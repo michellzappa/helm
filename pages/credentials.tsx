@@ -1,18 +1,19 @@
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
 import { useCounts } from "@/lib/counts-context";
-import { Database, BarChart2, ShoppingBag, Globe, Cpu, Radio, Settings } from "lucide-react";
+import { Database, BarChart2, ShoppingBag, Globe, Cpu, Radio, Settings, KeyRound } from "lucide-react";
 import type { Credential } from "@/lib/types";
 
-const CATEGORY_ORDER = ["Databases", "Analytics", "Commerce", "Google", "AI Tools", "Channels", "System"];
+// Icon map — any category not listed falls back to Settings icon
 const CATEGORY_ICON: Record<string, React.ElementType> = {
-  Databases:  Database,
-  Analytics:  BarChart2,
-  Commerce:   ShoppingBag,
-  Google:     Globe,
-  "AI Tools": Cpu,
-  Channels:   Radio,
-  System:     Settings,
+  Databases:    Database,
+  Analytics:    BarChart2,
+  Commerce:     ShoppingBag,
+  Google:       Globe,
+  "AI Tools":   Cpu,
+  Channels:     Radio,
+  System:       Settings,
+  Credentials:  KeyRound,
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -39,10 +40,20 @@ export default function CredentialsPage() {
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
-  const byCategory = CATEGORY_ORDER.reduce<Record<string, Credential[]>>((acc, cat) => {
-    acc[cat] = creds.filter(c => c.category === cat);
+  // Derive categories dynamically from API data
+  const byCategory = creds.reduce<Record<string, Credential[]>>((acc, c) => {
+    (acc[c.category] = acc[c.category] || []).push(c);
     return acc;
   }, {});
+  // Sort categories: known order first, then alphabetical
+  const PREFERRED_ORDER = ["Channels", "System", "Credentials", "Databases", "Analytics", "Commerce", "Google", "AI Tools"];
+  const categories = Object.keys(byCategory).sort((a, b) => {
+    const ai = PREFERRED_ORDER.indexOf(a), bi = PREFERRED_ORDER.indexOf(b);
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   const okCount = creds.filter(c => c.status === "ok").length;
 
@@ -60,10 +71,10 @@ export default function CredentialsPage() {
 
         {!loading && (
           <div className="space-y-6">
-            {CATEGORY_ORDER.filter(cat => byCategory[cat]?.length > 0).map(cat => (
+            {categories.map(cat => (
               <div key={cat}>
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-                  {(() => { const Icon = CATEGORY_ICON[cat]; return Icon ? <Icon className="h-3.5 w-3.5" /> : null; })()}
+                  {(() => { const Icon = CATEGORY_ICON[cat] ?? Settings; return <Icon className="h-3.5 w-3.5" />; })()}
                   {cat}
                 </h2>
                 <div className="rounded-lg border overflow-hidden">

@@ -143,7 +143,7 @@ export default async function handler(
           name: job.payload?.name || job.name || "Unknown",
           type: "cron",
           schedule: cronExpr,
-          enabled: job.payload?.enabled !== false,
+          enabled: job.enabled ?? true,
           nextRunAtMs,
           lastRunAtMs: job.state?.lastRunAtMs,
           workspace: job.payload?.workspace || job.workspace || "openclaw",
