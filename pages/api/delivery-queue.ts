@@ -1,9 +1,10 @@
+import os from "os";
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { QueueItem } from "@/lib/types";
 
-const HOME = process.env.HOME || "/Users/botbot";
+const HOME = os.homedir();
 const QUEUE_DIR = join(HOME, ".openclaw/delivery-queue");
 
 export default async function handler(

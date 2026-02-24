@@ -1,3 +1,4 @@
+import os from "os";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -21,7 +22,7 @@ export default async function handler(
   }
 
   try {
-    const homeDir = process.env.HOME || "/Users/botbot";
+    const homeDir = os.homedir();
     const openclawDir = join(homeDir, ".openclaw");
     const workspaces: Workspace[] = [];
 

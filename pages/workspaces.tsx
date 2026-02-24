@@ -75,7 +75,7 @@ export default function WorkspacesPage() {
   const sortedWorkspaces = sortData(workspaces, sortBy, sortDir);
 
   const shortenPath = (path: string) => {
-    return path.replace(process.env.HOME || "/Users/botbot", "~");
+    return path.replace(process.env.HOME || "", "~");
   };
 
   return (

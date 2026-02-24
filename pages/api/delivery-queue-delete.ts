@@ -1,8 +1,9 @@
+import os from "os";
 import { unlink, readdir } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const HOME = process.env.HOME || "/Users/botbot";
+const HOME = os.homedir();
 const QUEUE_DIR = join(HOME, ".openclaw/delivery-queue");
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

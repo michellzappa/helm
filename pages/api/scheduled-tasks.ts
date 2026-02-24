@@ -1,3 +1,4 @@
+import os from "os";
 import { readFile } from "fs/promises";
 import { exec } from "child_process";
 import { promisify } from "util";
@@ -6,6 +7,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Cron } from "croner";
 
 const execAsync = promisify(exec);
+const HOME = os.homedir();
+const TZ = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
 interface ScheduledTask {
   id: string;
@@ -30,7 +33,7 @@ function getNextRunTime(
   tz?: string
 ): number | undefined {
   try {
-    const cron = new Cron(cronExpr, { timezone: tz || "Europe/Amsterdam" });
+    const cron = new Cron(cronExpr, { timezone: tz || TZ });
     const nextDate = cron.nextRun();
     return nextDate ? nextDate.getTime() : undefined;
   } catch (err) {
@@ -92,7 +95,7 @@ export default async function handler(
 
     // Fetch OpenClaw cron jobs from file
     try {
-      const cronsPath = join(process.env.HOME || "/Users/botbot", ".openclaw/cron/jobs.json");
+      const cronsPath = join(os.homedir(), ".openclaw/cron/jobs.json");
       const content = await readFile(cronsPath, "utf-8");
       const cronData = JSON.parse(content);
       
@@ -102,7 +105,7 @@ export default async function handler(
 
       for (const job of cronJobs) {
         const cronExpr = job.payload?.schedule?.expr || job.schedule?.expr || job.schedule?.kind || "";
-        const tz = job.payload?.schedule?.tz || job.schedule?.tz || "Europe/Amsterdam";
+        const tz = job.payload?.schedule?.tz || job.schedule?.tz || TZ;
         
         // Calculate next run time if not already set
         let nextRunAtMs = job.payload?.nextRunAtMs || job.nextRunAtMs;

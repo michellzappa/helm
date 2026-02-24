@@ -1,9 +1,10 @@
+import os from "os";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import type { Channel } from "@/lib/types";
 
-const HOME = process.env.HOME || "/Users/botbot";
+const HOME = os.homedir();
 
 export default async function handler(
   req: NextApiRequest,

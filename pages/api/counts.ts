@@ -1,3 +1,4 @@
+import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -5,7 +6,7 @@ import type { SidebarCounts } from "@/lib/types";
 
 export type { SidebarCounts } from "@/lib/types";
 
-const HOME = process.env.HOME || "/Users/botbot";
+const HOME = os.homedir();
 
 async function countMemory(): Promise<number> {
   let n = 0;
@@ -31,7 +32,7 @@ async function countCalendar(): Promise<number> {
 async function countModels(): Promise<number> {
   try {
     const raw = await readFile(
-      join(HOME, ".openclaw/workspace/mission-control/config/models.json"),
+      join(process.cwd(), "config/models.json"),
       "utf-8"
     );
     const d = JSON.parse(raw);

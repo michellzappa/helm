@@ -1,3 +1,4 @@
+import os from "os";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -30,7 +31,7 @@ export default async function handler(
     };
 
     // Read cron jobs
-    const cronsPath = join(process.env.HOME || "/Users/botbot", ".openclaw/cron/jobs.json");
+    const cronsPath = join(os.homedir(), ".openclaw/cron/jobs.json");
     const content = await readFile(cronsPath, "utf-8");
     const cronData = JSON.parse(content);
     const cronJobs = cronData.jobs || [];

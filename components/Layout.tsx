@@ -91,7 +91,11 @@ function LayoutInner({
           <div className="flex items-center gap-2 px-2 py-2 overflow-hidden">
             <SidebarTrigger className="shrink-0" />
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">Lagosta</span>
+              {process.env.NEXT_PUBLIC_AGENT_NAME && (
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">
+                  {process.env.NEXT_PUBLIC_AGENT_NAME}
+                </span>
+              )}
               <span className="text-sm font-bold truncate">Helm</span>
             </div>
           </div>

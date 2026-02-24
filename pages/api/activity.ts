@@ -1,9 +1,11 @@
+import os from "os";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const HOME = process.env.HOME || "/Users/botbot";
+const HOME = os.homedir();
 const LOG_PATH = join(HOME, ".openclaw/logs/gateway.log");
+const TZ = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
 export interface DayBucket {
   date: string;   // YYYY-MM-DD
@@ -13,7 +15,7 @@ export interface DayBucket {
 
 export interface ActivityData {
   daily: DayBucket[];        // 30 entries, oldest → newest
-  hourly: number[];          // 24 values, index = local hour (Amsterdam)
+  hourly: number[];          // 24 values, index = local hour (system timezone)
   channels: { name: string; label: string; count: number }[];
   cron: { success: number; fail: number };
   totalEvents: number;
@@ -35,7 +37,7 @@ const TTL = 60_000;
 
 function localDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Amsterdam",
+    timeZone: TZ,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -44,7 +46,7 @@ function localDate(date: Date): string {
 
 function localHour(date: Date): number {
   const parts = new Intl.DateTimeFormat("en", {
-    timeZone: "Europe/Amsterdam",
+    timeZone: TZ,
     hour: "numeric",
     hour12: false,
   }).formatToParts(date);

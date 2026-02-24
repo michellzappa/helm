@@ -1,3 +1,4 @@
+import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -133,7 +134,7 @@ export default async function handler(
   }
 
   try {
-    const home = process.env.HOME || "/Users/botbot";
+    const home = os.homedir();
 
     let disabledSkills: string[] = [];
     try {

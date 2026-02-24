@@ -1,8 +1,9 @@
+import os from "os";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const HOME = process.env.HOME || "/Users/botbot";
+const HOME = os.homedir();
 
 export interface PairedNode {
   deviceId: string;
