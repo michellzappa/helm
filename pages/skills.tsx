@@ -109,7 +109,7 @@ export default function SkillsPage() {
 
   return (
     <Layout>
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 sm:p-8 space-y-6 sm:space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-4xl font-bold">Skills & Integrations</h1>

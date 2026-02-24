@@ -24,36 +24,31 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="space-y-4">
-        {/* System overview */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 sm:p-8 space-y-6">
-          <div>
-            <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
-              return (
-                <Link key={stat.label} href={stat.href} className="block">
-                  <Card className="cursor-pointer hover:shadow-md active:scale-[0.98] transition-all h-full">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                      <CardTitle className="text-xs sm:text-sm font-medium">{stat.label}</CardTitle>
-                      <Icon className="h-3 sm:h-4 w-3 sm:w-4 text-muted-foreground flex-shrink-0" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-xl sm:text-2xl font-bold">
-                        {counts === null ? "—" : (stat.value ?? 0)}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
         </div>
-
-        {/* Activity charts */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Link key={stat.label} href={stat.href} className="block">
+                <Card className="cursor-pointer hover:shadow-md active:scale-[0.98] transition-all h-full">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle className="text-xs sm:text-sm font-medium">{stat.label}</CardTitle>
+                    <Icon className="h-3 sm:h-4 w-3 sm:w-4 text-muted-foreground flex-shrink-0" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xl sm:text-2xl font-bold">
+                      {counts === null ? "—" : (stat.value ?? 0)}
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
         <ActivityCharts />
       </div>
     </Layout>
