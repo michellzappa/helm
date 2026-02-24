@@ -18,9 +18,9 @@ const SPEED_COLORS: Record<string, string> = {
   slow:     "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  primary:  "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
-  fallback: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+const TAG_COLORS: Record<string, string> = {
+  default:    "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
+  configured: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
 };
 
 function formatBytes(bytes: number): string {
@@ -84,7 +84,7 @@ export default function ModelsPage() {
                 <TableRow>
                   <TableHead><SortableTableHead column="name"     label="Model"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
                   <TableHead><SortableTableHead column="provider" label="Provider" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead><SortableTableHead column="role"     label="Role"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHead column="tags"     label="Tags"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
                   <TableHead><SortableTableHead column="speed"    label="Speed"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
                   <TableHead className="text-right"><SortableTableHead column="context" label="Context" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
                   <TableHead className="text-center">Input</TableHead>
@@ -112,13 +112,17 @@ export default function ModelsPage() {
                     </TableCell>
                     <TableCell className="text-sm">{model.provider}</TableCell>
                     <TableCell>
-                      {model.role ? (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${ROLE_COLORS[model.role] ?? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
-                          {model.role}
-                        </span>
-                      ) : model.sizeBytes ? (
-                        <span className="text-xs text-muted-foreground">{formatBytes(model.sizeBytes)}</span>
-                      ) : "—"}
+                      <div className="flex flex-wrap gap-1">
+                        {model.tags?.filter(t => !t.startsWith("alias:")).map(tag => (
+                          <span key={tag} className={`text-xs font-medium px-2 py-0.5 rounded ${TAG_COLORS[tag] ?? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
+                            {tag}
+                          </span>
+                        ))}
+                        {model.sizeBytes ? (
+                          <span className="text-xs text-muted-foreground">{formatBytes(model.sizeBytes)}</span>
+                        ) : null}
+                        {(!model.tags?.length && !model.sizeBytes) ? "—" : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {model.speed ? (
