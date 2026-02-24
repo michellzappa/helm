@@ -20,20 +20,13 @@ async function countMemory(): Promise<number> {
     const daily = await readdir(join(HOME, ".openclaw/workspace/memory"));
     n += daily.filter(f => f.endsWith(".md")).length;
   } catch {}
-  // Skill SKILL.md files (shown in memory page)
-  const skillRoots = [
-    join(HOME, ".openclaw/workspace/skills"),
-    "/opt/homebrew/lib/node_modules/openclaw/skills",
-    join(HOME, ".openclaw/extensions"),
-  ];
-  for (const base of skillRoots) {
-    try {
-      const items = await readdir(base);
-      for (const item of items) {
-        try { await readFile(join(base, item, "SKILL.md")); n++; } catch {}
-      }
-    } catch {}
-  }
+  // Skill SKILL.md files — workspace only, matching what the memory page shows
+  try {
+    const items = await readdir(join(HOME, ".openclaw/workspace/skills"));
+    for (const item of items) {
+      try { await readFile(join(HOME, ".openclaw/workspace/skills", item, "SKILL.md")); n++; } catch {}
+    }
+  } catch {}
   return n;
 }
 
