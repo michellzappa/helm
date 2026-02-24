@@ -1,10 +1,10 @@
 import os from "os";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const HOME = os.homedir();
-const LOG_PATH = join(HOME, ".openclaw/logs/gateway.log");
 const TZ = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
 export interface DayBucket {
@@ -14,51 +14,126 @@ export interface DayBucket {
 }
 
 export interface ActivityData {
-  daily: DayBucket[];        // 30 entries, oldest → newest
-  hourly: number[];          // 24 values, index = local hour (system timezone)
+  daily: DayBucket[];
+  hourly: number[];
   channels: { name: string; label: string; count: number }[];
-  cron: { success: number; fail: number };
+  cron: { success: number; fail: number; total: number };
   totalEvents: number;
   logDays: number;
+  logSource: string;   // which log path was used (for debugging)
 }
 
 const EMPTY: ActivityData = {
   daily: [],
   hourly: new Array(24).fill(0),
   channels: [],
-  cron: { success: 0, fail: 0 },
+  cron: { success: 0, fail: 0, total: 0 },
   totalEvents: 0,
   logDays: 0,
+  logSource: "none",
 };
 
-// Simple in-memory cache (60s TTL)
-let _cache: { data: ActivityData; at: number } | null = null;
-const TTL = 60_000;
+// ── Log path discovery ─────────────────────────────────────────────────────
+// Priority: 1) openclaw.json logging.file  2) /tmp/openclaw/ daily files  3) legacy stdout redirect
+function discoverLogPaths(): { paths: string[]; source: string } {
+  // 1. Custom path from openclaw.json
+  try {
+    const cfg = JSON.parse(readFileSync(join(HOME, ".openclaw/openclaw.json"), "utf-8"));
+    if (cfg.logging?.file && existsSync(cfg.logging.file)) {
+      return { paths: [cfg.logging.file], source: cfg.logging.file };
+    }
+  } catch {}
 
+  // 2. Default: /tmp/openclaw/openclaw-YYYY-MM-DD.log (last 30 days)
+  const tmpDir = "/tmp/openclaw";
+  if (existsSync(tmpDir)) {
+    const files = readdirSync(tmpDir)
+      .filter(f => /^openclaw-\d{4}-\d{2}-\d{2}\.log$/.test(f))
+      .map(f => join(tmpDir, f))
+      .filter(p => existsSync(p))
+      .sort(); // ascending = oldest first
+    if (files.length > 0) {
+      return { paths: files, source: tmpDir };
+    }
+  }
+
+  // 3. Legacy: LaunchAgent stdout redirect
+  const legacy = join(HOME, ".openclaw/logs/gateway.log");
+  if (existsSync(legacy)) {
+    return { paths: [legacy], source: legacy };
+  }
+
+  return { paths: [], source: "none" };
+}
+
+// ── Timestamp + message extraction (handles both formats) ──────────────────
+const TS_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))/;
+
+interface LogEvent {
+  ts: Date;
+  subsystem: string;   // e.g. "gateway/channels/telegram"
+  message: string;     // primary message text
+}
+
+function extractEvent(line: string): LogEvent | null {
+  if (!line.trim()) return null;
+
+  // JSONL format
+  if (line.startsWith("{")) {
+    try {
+      const d = JSON.parse(line);
+      const ts = new Date(d.time);
+      if (isNaN(ts.getTime())) return null;
+      let subsystem = "";
+      try { subsystem = JSON.parse(d["0"])?.subsystem ?? ""; } catch { subsystem = String(d["0"] ?? ""); }
+      const message = typeof d["1"] === "string" ? d["1"] : JSON.stringify(d["1"] ?? "");
+      return { ts, subsystem, message };
+    } catch { return null; }
+  }
+
+  // Plain-text format: "2026-02-11T06:57:28.806Z [subsystem] message..."
+  const tsMatch = line.match(TS_RE);
+  if (!tsMatch) return null;
+  const ts = new Date(tsMatch[1]);
+  if (isNaN(ts.getTime())) return null;
+  const rest = line.slice(tsMatch[0].length).trim();
+  const tagMatch = rest.match(/^\[([^\]]+)\]\s*(.*)/);
+  const subsystem = tagMatch ? tagMatch[1] : "";
+  const message = tagMatch ? tagMatch[2] : rest;
+  return { ts, subsystem, message };
+}
+
+// ── Date/hour helpers ──────────────────────────────────────────────────────
 function localDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(date);
 }
 
 function localHour(date: Date): number {
   const parts = new Intl.DateTimeFormat("en", {
-    timeZone: TZ,
-    hour: "numeric",
-    hour12: false,
+    timeZone: TZ, hour: "numeric", hour12: false,
   }).formatToParts(date);
   return parseInt(parts.find(p => p.type === "hour")?.value ?? "0") % 24;
 }
 
-const TS_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))/;
+// ── Cron stats from jobs.json (more reliable than log parsing) ─────────────
+async function cronStats(): Promise<{ success: number; fail: number; total: number }> {
+  try {
+    const raw = await readFile(join(HOME, ".openclaw/cron/jobs.json"), "utf-8");
+    const jobs: any[] = JSON.parse(raw).jobs ?? [];
+    let success = 0, fail = 0;
+    for (const job of jobs) {
+      const status = job.state?.lastRunStatus ?? job.state?.lastStatus;
+      if (status === "ok") success++;
+      else if (status === "error" || status === "failed") fail++;
+    }
+    return { success, fail, total: jobs.length };
+  } catch { return { success: 0, fail: 0, total: 0 }; }
+}
 
-function parse(): ActivityData {
-  if (!existsSync(LOG_PATH)) return EMPTY;
-
-  const lines = readFileSync(LOG_PATH, "utf-8").split("\n");
+// ── Main parser ────────────────────────────────────────────────────────────
+function parseLogPaths(paths: string[]): Omit<ActivityData, "cron" | "logSource"> {
   const now = new Date();
   const cutoff = localDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
 
@@ -66,59 +141,55 @@ function parse(): ActivityData {
   const dailySystem: Record<string, number> = {};
   const hourly = new Array(24).fill(0);
   const channelCounts: Record<string, number> = {};
-  let cronSuccess = 0;
-  let cronFail = 0;
   let totalEvents = 0;
 
-  for (const line of lines) {
-    const tsMatch = line.match(TS_RE);
-    if (!tsMatch) continue;
+  for (const filePath of paths) {
+    let content: string;
+    try { content = readFileSync(filePath, "utf-8"); } catch { continue; }
 
-    const ts = new Date(tsMatch[1]);
-    const date = localDate(ts);
-    if (date < cutoff) continue;
+    for (const line of content.split("\n")) {
+      const ev = extractEvent(line);
+      if (!ev) continue;
 
-    // ── Cron runs (inside [ws] lines) ──────────────────────
-    if (line.includes("cron.run")) {
-      if (line.includes("✓")) cronSuccess++;
-      else if (line.includes("✗")) cronFail++;
-      dailySystem[date] = (dailySystem[date] ?? 0) + 1;
-      totalEvents++;
-      continue;
-    }
+      const date = localDate(ev.ts);
+      if (date < cutoff) continue;
 
-    // ── Telegram: count outbound sendMessage as user exchanges
-    if (line.includes("[telegram]") && line.includes("sendMessage ok")) {
-      dailyUser[date] = (dailyUser[date] ?? 0) + 1;
-      channelCounts["telegram"] = (channelCounts["telegram"] ?? 0) + 1;
-      hourly[localHour(ts)]++;
-      totalEvents++;
-      continue;
-    }
+      const sub = ev.subsystem.toLowerCase();
+      const msg = ev.message.toLowerCase();
 
-    // ── WhatsApp: count explicit inbound messages
-    if (line.includes("[whatsapp]") && line.includes("Inbound message")) {
-      dailyUser[date] = (dailyUser[date] ?? 0) + 1;
-      channelCounts["whatsapp"] = (channelCounts["whatsapp"] ?? 0) + 1;
-      hourly[localHour(ts)]++;
-      totalEvents++;
-      continue;
-    }
+      // ── Telegram user exchange
+      if (sub.includes("telegram") && msg.includes("sendmessage ok")) {
+        dailyUser[date] = (dailyUser[date] ?? 0) + 1;
+        channelCounts["telegram"] = (channelCounts["telegram"] ?? 0) + 1;
+        hourly[localHour(ev.ts)]++;
+        totalEvents++;
+        continue;
+      }
 
-    // ── System background activity ──────────────────────────
-    if (
-      line.includes("[heartbeat]") ||
-      line.includes("[gmail-watcher]") ||
-      line.includes("[delivery-recovery]") ||
-      line.includes("[health-monitor]") ||
-      line.includes("[tailscale]")
-    ) {
-      dailySystem[date] = (dailySystem[date] ?? 0) + 1;
-      totalEvents++;
+      // ── WhatsApp inbound (plain-text log only; "Inbound message +X -> +Y")
+      if (sub.includes("whatsapp") && msg.includes("inbound message") && msg.includes("->")) {
+        dailyUser[date] = (dailyUser[date] ?? 0) + 1;
+        channelCounts["whatsapp"] = (channelCounts["whatsapp"] ?? 0) + 1;
+        hourly[localHour(ev.ts)]++;
+        totalEvents++;
+        continue;
+      }
+
+      // ── System background events
+      if (
+        sub.includes("heartbeat") ||
+        sub.includes("gmail-watcher") ||
+        sub.includes("delivery-recovery") ||
+        sub.includes("health-monitor") ||
+        sub.includes("tailscale") ||
+        (sub.includes("cron") && (msg.includes("cron: started") || msg.includes("timer armed")))
+      ) {
+        dailySystem[date] = (dailySystem[date] ?? 0) + 1;
+        totalEvents++;
+      }
     }
   }
 
-  // 30-day array, zero-filled
   const daily: DayBucket[] = Array.from({ length: 30 }, (_, i) => {
     const d = new Date(now.getTime() - (29 - i) * 24 * 60 * 60 * 1000);
     const date = localDate(d);
@@ -135,21 +206,28 @@ function parse(): ActivityData {
     }))
     .sort((a, b) => b.count - a.count);
 
-  return {
-    daily,
-    hourly,
-    channels,
-    cron: { success: cronSuccess, fail: cronFail },
-    totalEvents,
-    logDays: activeDates.size,
-  };
+  return { daily, hourly, channels, totalEvents, logDays: activeDates.size };
 }
 
-export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+// ── Cache + handler ────────────────────────────────────────────────────────
+let _cache: { data: ActivityData; at: number } | null = null;
+const TTL = 60_000;
+
+export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
   const now = Date.now();
-  if (!_cache || now - _cache.at > TTL) {
-    _cache = { data: parse(), at: now };
+  if (_cache && now - _cache.at < TTL) {
+    res.setHeader("Cache-Control", "s-maxage=60");
+    return res.json(_cache.data);
   }
+
+  const { paths, source } = discoverLogPaths();
+  const [logData, cron] = await Promise.all([
+    Promise.resolve(paths.length ? parseLogPaths(paths) : { ...EMPTY }),
+    cronStats(),
+  ]);
+
+  const data: ActivityData = { ...logData, cron, logSource: source };
+  _cache = { data, at: now };
   res.setHeader("Cache-Control", "s-maxage=60");
-  res.json(_cache.data);
+  res.json(data);
 }
