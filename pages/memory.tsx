@@ -14,47 +14,58 @@ interface MemoryFile {
   content: string;
   size: number;
   category: string;
+  lastModifiedMs: number;
 }
 
 const CATEGORY_ICON: Record<string, React.ReactNode> = {
-  System: <Settings className="h-4 w-4 flex-shrink-0" />,
-  Daily:  <Calendar className="h-4 w-4 flex-shrink-0" />,
-  Topic:  <Tag className="h-4 w-4 flex-shrink-0" />,
-  Skill:  <Book className="h-4 w-4 flex-shrink-0" />,
+  System: <Settings className="h-3.5 w-3.5" />,
+  Daily:  <Calendar className="h-3.5 w-3.5" />,
+  Topic:  <Tag className="h-3.5 w-3.5" />,
+  Skill:  <Book className="h-3.5 w-3.5" />,
 };
 const CATEGORY_COLOR: Record<string, string> = {
   System: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
   Daily:  "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
   Topic:  "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
   Skill:  "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
+  Other:  "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
 };
+
+function formatDate(ms: number): string {
+  if (!ms) return "—";
+  const d = new Date(ms);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: diffDays > 365 ? "numeric" : undefined });
+}
 
 function MemorySkeleton() {
   return (
-    <div className="space-y-8">
-      {[1, 2].map(g => (
-        <div key={g} className="space-y-3">
-          <Skeleton className="h-6 w-32" />
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="text-right">Size</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-4 w-40" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      ))}
+    <div className="rounded-lg border overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Last Updated</TableHead>
+            <TableHead className="text-right">Size</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <TableRow key={i}>
+              <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+              <TableCell className="text-right"><Skeleton className="h-4 w-12 ml-auto" /></TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -66,8 +77,8 @@ export default function Memory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<MemoryFile | null>(null);
-  const [sortBy, setSortBy] = useState<string | null>("name");
-  const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [sortBy, setSortBy] = useState<string | null>("lastModifiedMs");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
 
   useEffect(() => {
     fetch("/api/memories")
@@ -83,20 +94,14 @@ export default function Memory() {
 
   const handleSort = (col: string) => {
     if (sortBy === col) setSortDir(getNextSortDirection(sortDir));
-    else { setSortBy(col); setSortDir("asc"); }
+    else { setSortBy(col); setSortDir(col === "lastModifiedMs" ? "desc" : "asc"); }
   };
 
   const sorted = sortData(filtered, sortBy, sortDir);
 
-  const grouped = filtered.reduce((acc, m) => {
-    (acc[m.category] ||= []).push(m);
-    return acc;
-  }, {} as Record<string, MemoryFile[]>);
-  const categories = Object.keys(grouped).sort();
-
   return (
     <Layout>
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 sm:p-8 space-y-6 sm:space-y-8">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 sm:p-8 space-y-6">
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Memory Bank</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -122,51 +127,45 @@ export default function Memory() {
         </div>
 
         {loading ? <MemorySkeleton /> : (
-          <div className="space-y-8">
-            {categories.map(category => (
-              <div key={category} className="space-y-3">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <span className={`flex items-center gap-1.5 text-sm px-2 py-0.5 rounded ${CATEGORY_COLOR[category] || "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
-                    {CATEGORY_ICON[category] || <FileText className="h-4 w-4" />}
-                    {category}
-                  </span>
-                  <span className="text-sm font-normal text-muted-foreground">{grouped[category].length} files</span>
-                </h2>
-                <div className="rounded-lg border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>
-                          <SortableTableHead column="name" label="Name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                        </TableHead>
-                        <TableHead className="text-right">
-                          <SortableTableHead column="size" label="Size" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {grouped[category]
-                        .filter(m => sorted.includes(m))
-                        .map(memory => (
-                          <TableRow
-                            key={memory.path}
-                            className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                            onClick={() => setSelected(memory)}
-                          >
-                            <TableCell className="font-medium">{memory.name}</TableCell>
-                            <TableCell className="text-right text-sm text-muted-foreground">
-                              {Math.round(memory.size / 1024)} KB
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))}
-            {filtered.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">No memories found</p>
-            )}
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead><SortableTableHead column="name"           label="Name"         sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHead column="category"       label="Category"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHead column="lastModifiedMs" label="Last Updated" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead className="text-right"><SortableTableHead column="size" label="Size" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sorted.map(memory => (
+                  <TableRow
+                    key={memory.path}
+                    className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                    onClick={() => setSelected(memory)}
+                  >
+                    <TableCell className="font-medium">{memory.name}</TableCell>
+                    <TableCell>
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${CATEGORY_COLOR[memory.category] ?? CATEGORY_COLOR.Other}`}>
+                        {CATEGORY_ICON[memory.category] ?? <FileText className="h-3.5 w-3.5" />}
+                        {memory.category}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                      {formatDate(memory.lastModifiedMs)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {Math.round(memory.size / 1024)} KB
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {sorted.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No memories found</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
@@ -176,7 +175,7 @@ export default function Memory() {
         <DialogContent className="max-w-2xl">
           <DialogHeader className="pb-4">
             <DialogTitle className="flex items-center gap-2">
-              {selected && (CATEGORY_ICON[selected.category] || <FileText className="h-4 w-4" />)}
+              {selected && (CATEGORY_ICON[selected.category] ?? <FileText className="h-4 w-4" />)}
               {selected?.name}
             </DialogTitle>
           </DialogHeader>

@@ -1,4 +1,4 @@
-import { readdir, readFile } from "fs/promises";
+import { readdir, readFile, stat } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -8,6 +8,7 @@ interface MemoryFile {
   name: string;
   path: string;
   content: string;
+  lastModifiedMs: number;
   size: number;
   category: string;
 }
@@ -38,13 +39,14 @@ export default async function handler(
     for (const file of rootFiles) {
       try {
         const filePath = join(WORKSPACE_PATH, file);
-        const content = await readFile(filePath, "utf-8");
+        const [content, fileStat] = await Promise.all([readFile(filePath, "utf-8"), stat(filePath)]);
         memoryFiles.push({
           name: file,
           path: file,
           content,
           size: content.length,
           category: "System",
+          lastModifiedMs: fileStat.mtimeMs,
         });
       } catch (err) {
         // File doesn't exist, skip
@@ -60,7 +62,7 @@ export default async function handler(
         if (file.endsWith(".md")) {
           try {
             const filePath = join(memoryPath, file);
-            const content = await readFile(filePath, "utf-8");
+            const [content, fileStat] = await Promise.all([readFile(filePath, "utf-8"), stat(filePath)]);
 
             let category = "Other";
             if (file.match(/^\d{4}-\d{2}-\d{2}\.md$/)) {
@@ -75,6 +77,7 @@ export default async function handler(
               content,
               size: content.length,
               category,
+              lastModifiedMs: fileStat.mtimeMs,
             });
           } catch (err) {
             // Skip files we can't read
@@ -93,13 +96,14 @@ export default async function handler(
       for (const skill of skills) {
         try {
           const skillFile = join(skillsPath, skill, "SKILL.md");
-          const content = await readFile(skillFile, "utf-8");
+          const [content, fileStat] = await Promise.all([readFile(skillFile, "utf-8"), stat(skillFile)]);
           memoryFiles.push({
             name: `${skill}/SKILL.md`,
             path: `skills/${skill}/SKILL.md`,
             content,
             size: content.length,
             category: "Skill",
+            lastModifiedMs: fileStat.mtimeMs,
           });
         } catch (err) {
           // SKILL.md doesn't exist for this skill
@@ -109,13 +113,8 @@ export default async function handler(
       // Skills directory doesn't exist
     }
 
-    // Sort by category then name
-    memoryFiles.sort((a, b) => {
-      if (a.category !== b.category) {
-        return a.category.localeCompare(b.category);
-      }
-      return b.name.localeCompare(a.name); // Recent first for dailies
-    });
+    // Sort by last modified descending
+    memoryFiles.sort((a, b) => b.lastModifiedMs - a.lastModifiedMs);
 
     res.status(200).json(memoryFiles);
   } catch (error) {
