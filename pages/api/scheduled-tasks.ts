@@ -147,7 +147,7 @@ export default async function handler(
           enabled: job.enabled ?? true,
           nextRunAtMs,
           lastRunAtMs: job.state?.lastRunAtMs,
-          workspace: job.payload?.workspace || job.workspace || "openclaw",
+          workspace: job.payload?.workspace || job.workspace || null,
           model: modelDisplay,
         });
       }

@@ -113,7 +113,7 @@ async function countAgents(): Promise<number> {
   try {
     const raw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
     const { agents } = JSON.parse(raw);
-    return agents?.list?.length ?? 1;
+    return agents?.list?.length ?? 0;
   } catch { return 1; }
 }
 
