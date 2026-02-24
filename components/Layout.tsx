@@ -110,7 +110,7 @@ function LayoutInner({
                   <SidebarMenuButton
                     tooltip="Search (⌘K)"
                     onClick={() => setCmdOpen(true)}
-                    className="text-muted-foreground"
+                    className="text-muted-foreground border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <Search className="h-4 w-4 shrink-0" />
                     <span className="flex-1 group-data-[collapsible=icon]:hidden">Search…</span>
