@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+@layer base {
+  :root {
+    /* Theme accent — updated dynamically by ThemeColorApplier */
+    --theme-accent: #6b7280;
+    /* Sidebar */
+    --sidebar-background: #f4f4f5;
+    --sidebar-foreground: #0a0a0a;
+    --sidebar-primary: #0a0a0a;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #e5e5e5;
+    --sidebar-accent-foreground: #0a0a0a;
+    --sidebar-border: #e5e5e5;
+    --sidebar-ring: #0a0a0a;
+    /* App */
+    --background: #ffffff;
+    --foreground: #0a0a0a;
+    --card: #ffffff;
+    --card-foreground: #0a0a0a;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0a;
+    --primary: #0a0a0a;
+    --primary-foreground: #ffffff;
+    --secondary: #f5f5f5;
+    --secondary-foreground: #0a0a0a;
+    --muted: #f5f5f5;
+    --muted-foreground: #737373;
+    --accent: #f5f5f5;
+    --accent-foreground: #0a0a0a;
+    --destructive: #b91c1c;
+    --destructive-foreground: #ffffff;
+    --border: #e5e5e5;
+    --input: #e5e5e5;
+    --ring: #0a0a0a;
+    --surface: #f5f5f5;
+  }
+
+  .dark {
+    /* Sidebar */
+    --sidebar-background: #1a1a1a;
+    --sidebar-foreground: #f5f5f5;
+    --sidebar-primary: #ffffff;
+    --sidebar-primary-foreground: #0a0a0a;
+    --sidebar-accent: #2a2a2a;
+    --sidebar-accent-foreground: #f5f5f5;
+    --sidebar-border: #2a2a2a;
+    --sidebar-ring: #f5f5f5;
+    /* App */
+    --background: #0a0a0a;
+    --foreground: #f5f5f5;
+    --card: #111111;
+    --card-foreground: #f5f5f5;
+    --popover: #1a1a1a;
+    --popover-foreground: #f5f5f5;
+    --primary: #f5f5f5;
+    --primary-foreground: #0a0a0a;
+    --secondary: #1f1f1f;
+    --secondary-foreground: #f5f5f5;
+    --muted: #1f1f1f;
+    --muted-foreground: #999999;
+    --accent: #1f1f1f;
+    --accent-foreground: #f5f5f5;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    --border: #2a2a2a;
+    --input: #2a2a2a;
+    --ring: #d4d4d4;
+    --surface: #1f1f1f;
+  }
+}
+
+/* Default border color for all elements — overrides Tailwind's near-black default */
+*,
+::before,
+::after {
+  border-color: var(--border);
+}
+
+html,
+body,
+#__next {
+  height: 100%;
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.bg-sidebar {
+  background-color: var(--sidebar-background);
+}
+
+.text-sidebar-foreground {
+  color: #000000;
+}
+.dark .text-sidebar-foreground {
+  color: #f3f4f6;
+}
+
+.bg-sidebar-accent {
+  background-color: #f3f4f6;
+}
+.dark .bg-sidebar-accent {
+  background-color: #1f2937;
+}
+
+.text-sidebar-accent-foreground {
+  color: #000000;
+}
+.dark .text-sidebar-accent-foreground {
+  color: #f3f4f6;
+}
+
+.bg-sidebar-primary {
+  background-color: #000000;
+}
+.dark .bg-sidebar-primary {
+  background-color: #ffffff;
+}
+
+.text-sidebar-primary-foreground {
+  color: #ffffff;
+}
+.dark .text-sidebar-primary-foreground {
+  color: #000000;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* ⌘K command palette — selected item tinted with theme accent */
+.cmd-item[data-selected="true"] {
+  background-color: color-mix(in srgb, var(--theme-accent) 10%, transparent);
+}
+
+/* Sidebar active item — left accent indicator driven by --theme-accent */
+.sidebar-active-item {
+  box-shadow: inset 3px 0 0 var(--theme-accent), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.dark .sidebar-active-item {
+  box-shadow: inset 3px 0 0 var(--theme-accent), 0 1px 2px rgba(0, 0, 0, 0.3);
+}

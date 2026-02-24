@@ -1,0 +1,54 @@
+{
+  "models": [
+    {
+      "id": "anthropic/claude-haiku-4-5",
+      "name": "Claude Haiku 4.5",
+      "provider": "Anthropic",
+      "context": 200000,
+      "costInput": "€0.75/M",
+      "costOutput": "€3.75/M",
+      "speed": "fast",
+      "status": "active"
+    },
+    {
+      "id": "anthropic/claude-opus-4-6",
+      "name": "Claude Opus 4.6",
+      "provider": "Anthropic",
+      "context": 200000,
+      "costInput": "€14.00/M",
+      "costOutput": "€70.00/M",
+      "speed": "balanced",
+      "status": "active"
+    },
+    {
+      "id": "local/qwen3-14b",
+      "name": "Qwen3 14B",
+      "provider": "Ollama (Local)",
+      "context": 8000,
+      "costInput": "Free",
+      "costOutput": "Free",
+      "speed": "fast",
+      "status": "active"
+    },
+    {
+      "id": "local/kokoro-82m",
+      "name": "Kokoro 82M",
+      "provider": "Local (Python)",
+      "context": 0,
+      "costInput": "Free",
+      "costOutput": "Free",
+      "speed": "fast",
+      "status": "active"
+    },
+    {
+      "id": "local/whisper-large-v3",
+      "name": "MLX Whisper Large v3",
+      "provider": "Local (Python)",
+      "context": 0,
+      "costInput": "Free",
+      "costOutput": "Free",
+      "speed": "fast",
+      "status": "active"
+    }
+  ]
+}

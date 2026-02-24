@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS LaunchAgent — auto-starts Mission Control on login.
+
+  Setup:
+    1. Copy this file to ~/Library/LaunchAgents/com.yourname.mission-control.plist
+    2. Replace INSTALL_PATH with the absolute path to your mission-control directory
+    3. Replace /path/to/home with your home directory (echo $HOME)
+    4. Run: launchctl load ~/Library/LaunchAgents/com.yourname.mission-control.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.yourname.mission-control</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>INSTALL_PATH/start.sh</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>INSTALL_PATH</string>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>INSTALL_PATH/logs/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>INSTALL_PATH/logs/stderr.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/path/to/home</string>
+    </dict>
+</dict>
+</plist>
