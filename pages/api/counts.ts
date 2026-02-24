@@ -106,20 +106,19 @@ async function countChannels(): Promise<number> {
 }
 
 async function countCredentials(): Promise<number> {
-  const KNOWN_FILES = [
-    "cms_supabase.env", "crm_supabase.env", "plausible.env", "gumroad.env",
-    "gmail_client_secret.json", "gmail_token_agent.json", "gmail_token_mz.json",
-    "google_calendar_casa.json", "google_calendar_work.json", "gsc_token_mz.json",
-    "granola_mcp_auth_state.json", "granola_mcp_client.json", "granola_mcp_token.json",
-  ];
-  let ok = 0;
-  for (const f of KNOWN_FILES) {
-    try {
-      const content = await readFile(join(HOME, ".openclaw/credentials", f), "utf-8");
-      if (content.trim()) ok++;
-    } catch {}
-  }
-  return ok;
+  try {
+    const files = await readdir(join(HOME, ".openclaw/credentials"));
+    let ok = 0;
+    for (const f of files) {
+      if (!f.endsWith(".json") && !f.endsWith(".env")) continue;
+      if (f.startsWith(".")) continue;
+      try {
+        const content = await readFile(join(HOME, ".openclaw/credentials", f), "utf-8");
+        if (content.trim()) ok++;
+      } catch {}
+    }
+    return ok;
+  } catch { return 0; }
 }
 
 async function countDeliveryQueue(): Promise<number> {

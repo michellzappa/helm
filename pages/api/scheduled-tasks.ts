@@ -93,6 +93,27 @@ export default async function handler(
       console.error("[scheduled-tasks] LaunchAgent fetch failed:", err);
     }
 
+    // Build model alias → display name map from config files
+    const modelNameMap: Record<string, string> = {};
+    try {
+      // Load models.json to get display names
+      const modelsRaw = await readFile(join(process.cwd(), "config/models.json"), "utf-8");
+      const modelsConfig = JSON.parse(modelsRaw);
+      for (const m of (modelsConfig.models || [])) {
+        modelNameMap[m.id] = m.name;
+        // Also map short suffix (e.g. "claude-haiku-4-5" → name)
+        const short = m.id.split("/").pop();
+        if (short) modelNameMap[short] = m.name;
+      }
+      // Load openclaw.json to resolve "default" alias
+      const ocRaw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
+      const ocConfig = JSON.parse(ocRaw);
+      const defaultModelId = ocConfig.agents?.defaults?.model?.primary || "";
+      if (defaultModelId && modelNameMap[defaultModelId]) {
+        modelNameMap["default"] = modelNameMap[defaultModelId];
+      }
+    } catch { /* use raw ref if config unavailable */ }
+
     // Fetch OpenClaw cron jobs from file
     try {
       const cronsPath = join(os.homedir(), ".openclaw/cron/jobs.json");
@@ -113,10 +134,9 @@ export default async function handler(
           nextRunAtMs = getNextRunTime(cronExpr, tz);
         }
         
-        // Map model reference to display name
-        let modelDisplay = job.payload?.model || "—";
-        if (modelDisplay === "default") modelDisplay = "Opus 4.6";
-        if (modelDisplay === "haiku") modelDisplay = "Haiku 4.5";
+        // Resolve model ref → display name dynamically
+        const modelRef = job.payload?.model || "default";
+        const modelDisplay = modelNameMap[modelRef] || modelRef;
         
         tasks.push({
           id: job.id,

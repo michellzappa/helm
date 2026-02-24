@@ -21,14 +21,23 @@ export default async function handler(
   }
 
   try {
-    // Map model references to model IDs
-    const modelMap: Record<string, string> = {
-      haiku: "anthropic/claude-haiku-4-5",
-      default: "anthropic/claude-opus-4-6",
-      opus: "anthropic/claude-opus-4-6",
-      "claude-haiku-4-5": "anthropic/claude-haiku-4-5",
-      "claude-opus-4-6": "anthropic/claude-opus-4-6",
-    };
+    // Build model alias → canonical ID map dynamically from config files
+    const modelMap: Record<string, string> = {};
+    try {
+      const modelsRaw = await readFile(join(process.cwd(), "config/models.json"), "utf-8");
+      const modelsConfig = JSON.parse(modelsRaw);
+      for (const m of (modelsConfig.models || [])) {
+        modelMap[m.id] = m.id;
+        const short = m.id.split("/").pop();
+        if (short) modelMap[short] = m.id;
+      }
+      const ocRaw = await readFile(join(os.homedir(), ".openclaw/openclaw.json"), "utf-8");
+      const ocConfig = JSON.parse(ocRaw);
+      const defaultId = ocConfig.agents?.defaults?.model?.primary || "";
+      if (defaultId) modelMap["default"] = defaultId;
+      const primaryAlias = ocConfig.agents?.defaults?.model?.primaryAlias || "";
+      if (primaryAlias && defaultId) modelMap[primaryAlias] = defaultId;
+    } catch { /* fallback: use raw ref as ID */ }
 
     // Read cron jobs
     const cronsPath = join(os.homedir(), ".openclaw/cron/jobs.json");

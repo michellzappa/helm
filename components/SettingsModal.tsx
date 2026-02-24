@@ -22,7 +22,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function Divider() {
-  return <div className="border-t border-border my-5" />;
+  return <div className="border-t border-border my-4" />;
 }
 
 export function SettingsModal({ open, onOpenChange }: Props) {
@@ -35,10 +35,10 @@ export function SettingsModal({ open, onOpenChange }: Props) {
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
 
-        <div className="pt-1">
+        <div className="px-6 pb-6 pt-1">
           {/* ── Color ── */}
           <SectionLabel>Color</SectionLabel>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1.5">
             {THEME_COLORS.map(color => {
               const active = settings.themeColor === color.id;
               return (
@@ -47,7 +47,7 @@ export function SettingsModal({ open, onOpenChange }: Props) {
                   onClick={() => setSetting("themeColor", color.id)}
                   title={color.label}
                   className={cn(
-                    "h-6 w-10 rounded-full transition-all",
+                    "h-5 w-9 rounded-full transition-all",
                     active
                       ? "ring-2 ring-offset-2 ring-foreground/50 scale-110"
                       : "opacity-70 hover:opacity-100 hover:scale-105"
