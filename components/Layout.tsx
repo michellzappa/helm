@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/command";
 import {
   LayoutDashboard, Brain, Calendar, Bot, Server, Zap,
-  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Menu, Settings,
+  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -182,15 +182,6 @@ function LayoutInner({
       </Sidebar>
 
       <main className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
-        {/* Sticky header */}
-        <div className="sticky top-0 bg-white/90 dark:bg-gray-950/90 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-4 py-2.5 z-10 flex items-center gap-3">
-          {/* Hamburger — mobile only */}
-          <SidebarTrigger className="h-8 w-8 flex md:hidden items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
-            <Menu className="h-5 w-5" />
-          </SidebarTrigger>
-          <span className="text-sm font-semibold md:hidden">Helm</span>
-        </div>
-
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           {children}
         </div>
