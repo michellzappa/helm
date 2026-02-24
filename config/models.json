@@ -1,6 +1,16 @@
 {
   "models": [
     {
+      "id": "anthropic/claude-sonnet-4-6",
+      "name": "Claude Sonnet 4.6",
+      "provider": "Anthropic",
+      "context": 200000,
+      "costInput": "€3.00/M",
+      "costOutput": "€15.00/M",
+      "speed": "balanced",
+      "status": "active"
+    },
+    {
       "id": "anthropic/claude-haiku-4-5",
       "name": "Claude Haiku 4.5",
       "provider": "Anthropic",

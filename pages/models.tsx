@@ -5,32 +5,29 @@ import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sortin
 import { useState, useEffect } from "react";
 import { useCounts } from "@/lib/counts-context";
 import { Zap, Cpu } from "lucide-react";
-
-interface Model {
-  id: string;
-  name: string;
-  provider: string;
-  context: number;
-  costInput: string;
-  costOutput: string;
-  speed: "fast" | "balanced" | "slow";
-  status: "active" | "inactive";
-}
+import type { Model } from "./api/models";
 
 interface ModelUsage {
   modelId: string;
-  jobs: Array<{
-    jobId: string;
-    jobName: string;
-    modelRef: string;
-  }>;
+  jobs: Array<{ jobId: string; jobName: string; modelRef: string }>;
 }
 
-const SPEED_COLORS = {
-  fast: "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
+const SPEED_COLORS: Record<string, string> = {
+  fast:     "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
   balanced: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-  slow: "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
+  slow:     "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
 };
+
+const ROLE_COLORS: Record<string, string> = {
+  primary:  "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
+  fallback: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+  return `${bytes} B`;
+}
 
 export default function ModelsPage() {
   const { counts } = useCounts();
@@ -38,53 +35,37 @@ export default function ModelsPage() {
   const [usage, setUsage] = useState<ModelUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<string | null>("name");
+  const [sortBy, setSortBy] = useState<string | null>("source");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/models").then((res) => res.json()),
-      fetch("/api/model-usage").then((res) => res.json()),
-    ])
-      .then(([modelsData, usageData]) => {
-        if (Array.isArray(modelsData)) {
-          setModels(modelsData);
-        } else if (modelsData.error) {
-          setError(modelsData.error);
-        }
-        if (Array.isArray(usageData)) {
-          setUsage(usageData);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
-      });
+      fetch("/api/models").then(r => r.json()),
+      fetch("/api/model-usage").then(r => r.json()),
+    ]).then(([modelsData, usageData]) => {
+      if (Array.isArray(modelsData)) setModels(modelsData);
+      else if (modelsData.error) setError(modelsData.error);
+      if (Array.isArray(usageData)) setUsage(usageData);
+      setLoading(false);
+    }).catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
-  const getUsageForModel = (modelId: string) => {
-    return usage.find((u) => u.modelId === modelId)?.jobs || [];
+  const getUsage = (id: string) => usage.find(u => u.modelId === id)?.jobs || [];
+
+  const handleSort = (col: string) => {
+    if (sortBy === col) setSortDir(getNextSortDirection(sortDir));
+    else { setSortBy(col); setSortDir("asc"); }
   };
 
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortDir(getNextSortDirection(sortDir));
-    } else {
-      setSortBy(column);
-      setSortDir("asc");
-    }
-  };
-
-  const sortedModels = sortData(models, sortBy, sortDir);
+  const sorted = sortData(models, sortBy, sortDir);
 
   return (
     <Layout>
-      <div className="space-y-6 sm:space-y-8">
+      <div className="space-y-6">
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Models</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {counts?.models ?? "…"} models available
+            {counts?.models ?? "…"} configured models
           </p>
         </div>
 
@@ -95,140 +76,83 @@ export default function ModelsPage() {
         )}
 
         {loading ? (
-          <p className="text-muted-foreground">Loading models...</p>
+          <p className="text-muted-foreground">Loading…</p>
         ) : (
-          <div className="rounded-lg border dark:border-gray-700 overflow-hidden">
+          <div className="rounded-lg border overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="cursor-pointer">
-                    <SortableTableHead
-                      column="name"
-                      label="Model"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </TableHead>
-                  <TableHead className="cursor-pointer">
-                    <SortableTableHead
-                      column="provider"
-                      label="Provider"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </TableHead>
-                  <TableHead className="cursor-pointer">
-                    <SortableTableHead
-                      column="speed"
-                      label="Speed"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </TableHead>
-                  <TableHead className="text-right cursor-pointer">
-                    <SortableTableHead
-                      column="context"
-                      label="Context"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </TableHead>
-                  <TableHead className="text-center">Input Cost</TableHead>
-                  <TableHead className="text-center">Output Cost</TableHead>
+                  <TableHead><SortableTableHead column="name"     label="Model"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHead column="provider" label="Provider" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHead column="role"     label="Role"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead><SortableTableHead column="speed"    label="Speed"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead className="text-right"><SortableTableHead column="context" label="Context" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                  <TableHead className="text-center">Input</TableHead>
+                  <TableHead className="text-center">Output</TableHead>
                   <TableHead>Used For</TableHead>
-                  <TableHead className="cursor-pointer">
-                    <SortableTableHead
-                      column="status"
-                      label="Status"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedModels.length === 0 ? (
+                {sorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                      No models found
-                    </TableCell>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No models found</TableCell>
                   </TableRow>
-                ) : (
-                  sortedModels.map((model) => (
-                    <TableRow key={model.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {model.provider === "Local" ? (
-                            <Cpu className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          ) : (
-                            <Zap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          )}
-                          <div>
-                            <div className="truncate">{model.name}</div>
-                            <code className="text-xs text-muted-foreground">{model.id}</code>
-                          </div>
+                ) : sorted.map(model => (
+                  <TableRow key={model.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {model.source === "local"
+                          ? <Cpu className="h-4 w-4 text-muted-foreground shrink-0" />
+                          : <Zap className="h-4 w-4 text-muted-foreground shrink-0" />}
+                        <div className="min-w-0">
+                          <div className="truncate">{model.name}</div>
+                          <code className="text-[10px] text-muted-foreground">{model.id}</code>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm">{model.provider}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`text-xs font-medium px-2 py-1 rounded capitalize ${
-                            SPEED_COLORS[model.speed]
-                          }`}
-                        >
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm">{model.provider}</TableCell>
+                    <TableCell>
+                      {model.role ? (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded ${ROLE_COLORS[model.role] ?? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
+                          {model.role}
+                        </span>
+                      ) : model.sizeBytes ? (
+                        <span className="text-xs text-muted-foreground">{formatBytes(model.sizeBytes)}</span>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      {model.speed ? (
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded capitalize ${SPEED_COLORS[model.speed]}`}>
                           {model.speed}
                         </span>
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {model.context > 0 ? `${Math.round(model.context / 1000)}K` : "—"}
-                      </TableCell>
-                      <TableCell className="text-center text-xs text-muted-foreground">
-                        {model.costInput}
-                      </TableCell>
-                      <TableCell className="text-center text-xs text-muted-foreground">
-                        {model.costOutput}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {(() => {
-                          const jobs = getUsageForModel(model.id);
-                          if (jobs.length === 0) {
-                            return <span className="text-muted-foreground italic">Not used</span>;
-                          }
-                          return (
-                            <div className="space-y-1">
-                              {jobs.map((job) => (
-                                <a
-                                  key={job.jobId}
-                                  href={`/calendar#${job.jobId}`}
-                                  className="block text-foreground hover:underline truncate"
-                                  title={job.jobName}
-                                >
-                                  → {job.jobName}
-                                </a>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`text-xs px-2 py-1 rounded font-medium ${
-                            model.status === "active"
-                              ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200"
-                              : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                          }`}
-                        >
-                          {model.status === "active" ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-sm text-muted-foreground">
+                      {model.context ? `${Math.round(model.context / 1000)}K` : "—"}
+                    </TableCell>
+                    <TableCell className="text-center text-xs text-muted-foreground whitespace-nowrap">
+                      {model.costInput ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-center text-xs text-muted-foreground whitespace-nowrap">
+                      {model.costOutput ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {(() => {
+                        const jobs = getUsage(model.id);
+                        if (!jobs.length) return <span className="text-muted-foreground">—</span>;
+                        return (
+                          <div className="space-y-0.5">
+                            {jobs.map(job => (
+                              <div key={job.jobId} className="truncate text-muted-foreground" title={job.jobName}>
+                                {job.jobName}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           </div>

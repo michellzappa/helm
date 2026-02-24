@@ -39,14 +39,25 @@ async function countCalendar(): Promise<number> {
 }
 
 async function countModels(): Promise<number> {
+  const seen = new Set<string>();
+  // Cloud models from openclaw.json
   try {
-    const raw = await readFile(
-      join(process.cwd(), "config/models.json"),
-      "utf-8"
-    );
-    const d = JSON.parse(raw);
-    return Array.isArray(d) ? d.length : (d.models?.length ?? Object.keys(d).length);
-  } catch { return 0; }
+    const raw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
+    const { agents } = JSON.parse(raw);
+    const m = agents?.defaults?.model || {};
+    if (m.primary) seen.add(m.primary);
+    for (const id of m.fallbacks || []) seen.add(id);
+    for (const a of agents?.list || []) if (a.model) seen.add(a.model);
+  } catch {}
+  // Local models from Ollama
+  try {
+    const res = await fetch("http://localhost:11434/api/tags", { signal: AbortSignal.timeout(2000) });
+    if (res.ok) {
+      const { models = [] } = await res.json();
+      for (const m of models) seen.add(`local/${m.name}`);
+    }
+  } catch {}
+  return seen.size || 1; // fallback to 1 if nothing discovered
 }
 
 async function countWorkspaces(): Promise<number> {
