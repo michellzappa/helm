@@ -1,7 +1,7 @@
 {
-  "name": "mission-control",
+  "name": "helm",
   "version": "1.0.0",
-  "description": "Mission Control Dashboard",
+  "description": "Observability dashboard for OpenClaw",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1,8 +1,8 @@
-# Mission Control
+# Helm
 
-**A companion dashboard for [OpenClaw](https://openclaw.ai) — see inside your agent, not just that it's running.**
+**An observability dashboard for [OpenClaw](https://openclaw.ai) — see inside your agent, not just that it's running.**
 
-![Mission Control Dashboard](public/screenshot.png)
+![Helm Dashboard](public/screenshot.png)
 
 ---
 
@@ -16,7 +16,9 @@ OpenClaw ships with a gateway management UI. It's great for checking that the ga
 - Why is this message stuck in the delivery queue?
 - Which credentials are missing or broken?
 
-Mission Control is the UI that answers those questions. It reads directly from your OpenClaw workspace and gateway to show **real system state** — no demo data, no placeholders, no stubs. If your agent has 214 memories, you see 214. If a delivery queue message is stuck, you can see why and delete it.
+Helm is the UI that answers those questions. It reads directly from your OpenClaw workspace and gateway to show **real system state** — no demo data, no placeholders, no stubs. If your agent has 214 memories, you see 214. If a delivery queue message is stuck, you can see the error and remove it.
+
+Think of it as the difference between knowing your ship is running and actually standing at the helm.
 
 ---
 
@@ -25,7 +27,7 @@ Mission Control is the UI that answers those questions. It reads directly from y
 - **10 system views** — Agents, Channels, Credentials, Delivery Queue, Memory, Models, Nodes, Scheduled Jobs, Skills, Workspaces
 - **Real data only** — reads from `~/.openclaw/` filesystem and gateway API
 - **⌘K command palette** — jump anywhere instantly
-- **Theme colors** — 8 accent options (including Lobster 🦞), persisted to localStorage
+- **Theme colors** — 8 accent options, persisted to localStorage
 - **Dark mode** — follows OS preference
 - **Mobile-friendly** — collapsible sidebar, touch-optimized
 - **Actionable** — delete delivery queue messages, inspect memory entries, explore skill configs
@@ -61,8 +63,8 @@ Mission Control is the UI that answers those questions. It reads directly from y
 
 ```bash
 # 1. Clone
-git clone https://github.com/michellzappa/mission-control
-cd mission-control
+git clone https://github.com/michellzappa/helm
+cd helm
 
 # 2. Install dependencies
 pnpm install
@@ -103,16 +105,16 @@ Drop any `.tsx` file into `pages/custom/` — it'll be available at `/custom/you
 
 ## Auto-start (macOS)
 
-To have Mission Control launch automatically at login:
+To have Helm launch automatically at login:
 
 ```bash
 # Copy and edit the example plist
-cp launchagent.example.plist ~/Library/LaunchAgents/com.yourname.mission-control.plist
-# Edit the plist — replace INSTALL_PATH with your actual path
-nano ~/Library/LaunchAgents/com.yourname.mission-control.plist
+cp launchagent.example.plist ~/Library/LaunchAgents/com.yourname.helm.plist
+# Replace INSTALL_PATH with your actual path
+nano ~/Library/LaunchAgents/com.yourname.helm.plist
 
 # Load it
-launchctl load ~/Library/LaunchAgents/com.yourname.mission-control.plist
+launchctl load ~/Library/LaunchAgents/com.yourname.helm.plist
 ```
 
 The default port is `1111`. Override with `MC_PORT=3000 pnpm dev` or set `MC_PORT` in the LaunchAgent's `EnvironmentVariables`.

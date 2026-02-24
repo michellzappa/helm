@@ -21,7 +21,7 @@ const KNOWN: Record<string, { name: string; category: string; note?: string }> =
   "granola_mcp_auth_state.json": { name: "Granola MCP auth state",   category: "AI Tools" },
   "granola_mcp_client.json":     { name: "Granola MCP client",       category: "AI Tools" },
   "granola_mcp_token.json":      { name: "Granola MCP token",        category: "AI Tools" },
-  "mission-control-key.json":    { name: "Mission Control Key",      category: "System" },
+  "helm-key.json":               { name: "Helm Key",                 category: "System" },
   "telegram-pairing.json":       { name: "Telegram pairing",         category: "Channels" },
   "telegram-allowFrom.json":     { name: "Telegram allowFrom",       category: "Channels" },
   "whatsapp-pairing.json":       { name: "WhatsApp pairing",         category: "Channels" },

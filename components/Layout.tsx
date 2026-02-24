@@ -92,7 +92,7 @@ function LayoutInner({
             <SidebarTrigger className="shrink-0" />
             <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none">Lagosta</span>
-              <span className="text-sm font-bold truncate">Mission Control</span>
+              <span className="text-sm font-bold truncate">Helm</span>
             </div>
           </div>
         </SidebarHeader>
@@ -163,7 +163,7 @@ function LayoutInner({
           <SidebarTrigger className="h-8 w-8 flex md:hidden items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">
             <Menu className="h-5 w-5" />
           </SidebarTrigger>
-          <span className="text-sm font-semibold md:hidden">Mission Control</span>
+          <span className="text-sm font-semibold md:hidden">Helm</span>
           <div className="flex-1" />
           {/* ⌘K / search */}
           <button

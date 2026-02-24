@@ -26,7 +26,7 @@ export default function Dashboard() {
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm p-4 sm:p-8 space-y-6 sm:space-y-8">
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Mission Control</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">

@@ -1,4 +1,4 @@
-# Mission Control Configuration
+# Helm Configuration
 
 ## models.json
 

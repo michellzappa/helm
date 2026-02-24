@@ -13,7 +13,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <title>Mission Control</title>
+        <title>Helm</title>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         {/* Apply theme based on OS preference to prevent flash */}
         <script

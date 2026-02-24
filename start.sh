@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mission Control start script
+# Helm start script
 # Copy to your install location and update paths, or run directly with pnpm.
 set -e
 cd "$(dirname "$0")"

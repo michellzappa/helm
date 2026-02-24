@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  macOS LaunchAgent — auto-starts Mission Control on login.
+  macOS LaunchAgent — auto-starts Helm on login.
 
   Setup:
-    1. Copy this file to ~/Library/LaunchAgents/com.yourname.mission-control.plist
-    2. Replace INSTALL_PATH with the absolute path to your mission-control directory
+    1. Copy this file to ~/Library/LaunchAgents/com.yourname.helm.plist
+    2. Replace INSTALL_PATH with the absolute path to your helm directory
     3. Replace /path/to/home with your home directory (echo $HOME)
-    4. Run: launchctl load ~/Library/LaunchAgents/com.yourname.mission-control.plist
+    4. Run: launchctl load ~/Library/LaunchAgents/com.yourname.helm.plist
 -->
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.yourname.mission-control</string>
+    <string>com.yourname.helm</string>
     <key>ProgramArguments</key>
     <array>
         <string>INSTALL_PATH/start.sh</string>

@@ -215,7 +215,7 @@ export default function WorkspacesPage() {
               files, memory, and configuration.
             </p>
             <p>
-              <strong>Projects:</strong> Integrated applications like Mission Control, memory
+              <strong>Projects:</strong> Integrated applications like Helm, memory
               banks, and data repositories.
             </p>
             <p>
