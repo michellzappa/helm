@@ -1,7 +1,11 @@
 import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
 import type { NextApiRequest, NextApiResponse } from "next";
+
+const execAsync = promisify(exec);
 import type { SidebarCounts } from "@/lib/types";
 
 export type { SidebarCounts } from "@/lib/types";
@@ -39,25 +43,17 @@ async function countCalendar(): Promise<number> {
 }
 
 async function countModels(): Promise<number> {
-  const seen = new Set<string>();
-  // Cloud models from openclaw.json
+  // Same source as the models page: openclaw models list + Ollama
+  let count = 0;
   try {
-    const raw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
-    const { agents } = JSON.parse(raw);
-    const m = agents?.defaults?.model || {};
-    if (m.primary) seen.add(m.primary);
-    for (const id of m.fallbacks || []) seen.add(id);
-    for (const a of agents?.list || []) if (a.model) seen.add(a.model);
+    const { stdout } = await execAsync("openclaw models list --json", { timeout: 8000 });
+    count += (JSON.parse(stdout).models ?? []).length;
   } catch {}
-  // Local models from Ollama
   try {
     const res = await fetch("http://localhost:11434/api/tags", { signal: AbortSignal.timeout(2000) });
-    if (res.ok) {
-      const { models = [] } = await res.json();
-      for (const m of models) seen.add(`local/${m.name}`);
-    }
+    if (res.ok) count += ((await res.json()).models ?? []).length;
   } catch {}
-  return seen.size || 1; // fallback to 1 if nothing discovered
+  return count;
 }
 
 async function countWorkspaces(): Promise<number> {

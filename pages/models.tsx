@@ -3,7 +3,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useState, useEffect } from "react";
-import { useCounts } from "@/lib/counts-context";
 import { Zap, Cpu } from "lucide-react";
 import type { Model } from "./api/models";
 
@@ -30,7 +29,6 @@ function formatBytes(bytes: number): string {
 }
 
 export default function ModelsPage() {
-  const { counts } = useCounts();
   const [models, setModels] = useState<Model[]>([]);
   const [usage, setUsage] = useState<ModelUsage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +63,7 @@ export default function ModelsPage() {
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Models</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {counts?.models ?? "…"} configured models
+            {loading ? "…" : `${models.length} configured models`}
           </p>
         </div>
 
