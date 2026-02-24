@@ -34,36 +34,49 @@ const EMPTY: ActivityData = {
 };
 
 // ── Log path discovery ─────────────────────────────────────────────────────
-// Priority: 1) openclaw.json logging.file  2) /tmp/openclaw/ daily files  3) legacy stdout redirect
-function discoverLogPaths(): { paths: string[]; source: string } {
+// Collects ALL available log sources; caller deduplicates by date.
+interface LogSource {
+  path: string;
+  datesOwned: Set<string> | null; // null = multi-day file (legacy redirect)
+}
+
+function discoverLogSources(): { sources: LogSource[]; label: string } {
+  const sources: LogSource[] = [];
+  const labels: string[] = [];
+
   // 1. Custom path from openclaw.json
   try {
     const cfg = JSON.parse(readFileSync(join(HOME, ".openclaw/openclaw.json"), "utf-8"));
     if (cfg.logging?.file && existsSync(cfg.logging.file)) {
-      return { paths: [cfg.logging.file], source: cfg.logging.file };
+      sources.push({ path: cfg.logging.file, datesOwned: null });
+      labels.push(cfg.logging.file);
     }
   } catch {}
 
-  // 2. Default: /tmp/openclaw/openclaw-YYYY-MM-DD.log (last 30 days)
+  // 2. Default: /tmp/openclaw/openclaw-YYYY-MM-DD.log (date-rotated JSONL)
   const tmpDir = "/tmp/openclaw";
   if (existsSync(tmpDir)) {
     const files = readdirSync(tmpDir)
       .filter(f => /^openclaw-\d{4}-\d{2}-\d{2}\.log$/.test(f))
-      .map(f => join(tmpDir, f))
-      .filter(p => existsSync(p))
-      .sort(); // ascending = oldest first
-    if (files.length > 0) {
-      return { paths: files, source: tmpDir };
+      .sort(); // oldest first
+    for (const f of files) {
+      const dateMatch = f.match(/openclaw-(\d{4}-\d{2}-\d{2})\.log/);
+      const path = join(tmpDir, f);
+      if (dateMatch && existsSync(path)) {
+        sources.push({ path, datesOwned: new Set([dateMatch[1]]) });
+      }
     }
+    if (files.length) labels.push(tmpDir);
   }
 
-  // 3. Legacy: LaunchAgent stdout redirect
+  // 3. Legacy: LaunchAgent stdout redirect (multi-day, fills gaps)
   const legacy = join(HOME, ".openclaw/logs/gateway.log");
   if (existsSync(legacy)) {
-    return { paths: [legacy], source: legacy };
+    sources.push({ path: legacy, datesOwned: null });
+    labels.push(legacy);
   }
 
-  return { paths: [], source: "none" };
+  return { sources, label: labels.join(" + ") || "none" };
 }
 
 // ── Timestamp + message extraction (handles both formats) ──────────────────
@@ -133,7 +146,16 @@ async function cronStats(): Promise<{ success: number; fail: number; total: numb
 }
 
 // ── Main parser ────────────────────────────────────────────────────────────
-function parseLogPaths(paths: string[]): Omit<ActivityData, "cron" | "logSource"> {
+function parseLogSources(sources: LogSource[]): Omit<ActivityData, "cron" | "logSource"> {
+  // Build set of dates owned by specific-date sources (to avoid double-counting)
+  const ownedDates = new Set<string>();
+  for (const s of sources) {
+    if (s.datesOwned) s.datesOwned.forEach(d => ownedDates.add(d));
+  }
+  return parseLogPaths(sources, ownedDates);
+}
+
+function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<ActivityData, "cron" | "logSource"> {
   const now = new Date();
   const cutoff = localDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
 
@@ -143,9 +165,9 @@ function parseLogPaths(paths: string[]): Omit<ActivityData, "cron" | "logSource"
   const channelCounts: Record<string, number> = {};
   let totalEvents = 0;
 
-  for (const filePath of paths) {
+  for (const source of sources) {
     let content: string;
-    try { content = readFileSync(filePath, "utf-8"); } catch { continue; }
+    try { content = readFileSync(source.path, "utf-8"); } catch { continue; }
 
     for (const line of content.split("\n")) {
       const ev = extractEvent(line);
@@ -153,6 +175,9 @@ function parseLogPaths(paths: string[]): Omit<ActivityData, "cron" | "logSource"
 
       const date = localDate(ev.ts);
       if (date < cutoff) continue;
+
+      // Multi-day sources (legacy log) skip dates already covered by dated JSONL files
+      if (!source.datesOwned && ownedDates.has(date)) continue;
 
       const sub = ev.subsystem.toLowerCase();
       const msg = ev.message.toLowerCase();
@@ -220,13 +245,13 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     return res.json(_cache.data);
   }
 
-  const { paths, source } = discoverLogPaths();
+  const { sources, label } = discoverLogSources();
   const [logData, cron] = await Promise.all([
-    Promise.resolve(paths.length ? parseLogPaths(paths) : { ...EMPTY }),
+    Promise.resolve(sources.length ? parseLogSources(sources) : { ...EMPTY }),
     cronStats(),
   ]);
 
-  const data: ActivityData = { ...logData, cron, logSource: source };
+  const data: ActivityData = { ...logData, cron, logSource: label };
   _cache = { data, at: now };
   res.setHeader("Cache-Control", "s-maxage=60");
   res.json(data);
