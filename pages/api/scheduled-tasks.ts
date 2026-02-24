@@ -93,26 +93,27 @@ export default async function handler(
       console.error("[scheduled-tasks] LaunchAgent fetch failed:", err);
     }
 
-    // Build model alias → display name map from config files
+    // Build alias → display name map using `openclaw models list --json`
+    // (same source as models page — aliases like "haiku"/"default" resolve correctly)
     const modelNameMap: Record<string, string> = {};
     try {
-      // Load models.json to get display names
-      const modelsRaw = await readFile(join(process.cwd(), "config/models.json"), "utf-8");
-      const modelsConfig = JSON.parse(modelsRaw);
-      for (const m of (modelsConfig.models || [])) {
-        modelNameMap[m.id] = m.name;
-        // Also map short suffix (e.g. "claude-haiku-4-5" → name)
-        const short = m.id.split("/").pop();
-        if (short) modelNameMap[short] = m.name;
+      const { stdout } = await execAsync("openclaw models list --json", { timeout: 8000 });
+      const { models: ocModels = [] } = JSON.parse(stdout);
+      // Optionally enrich with display names from config/models.json
+      const enrichment: Record<string, string> = {};
+      try {
+        const raw = await readFile(join(process.cwd(), "config/models.json"), "utf-8");
+        for (const m of JSON.parse(raw).models ?? []) enrichment[m.id] = m.name;
+      } catch {}
+      for (const m of ocModels) {
+        const displayName = enrichment[m.key] ?? m.name ?? m.key;
+        modelNameMap[m.key] = displayName;         // full ID
+        for (const tag of (m.tags ?? []) as string[]) {
+          if (tag === "default") modelNameMap["default"] = displayName;
+          if (tag.startsWith("alias:")) modelNameMap[tag.slice("alias:".length)] = displayName;
+        }
       }
-      // Load openclaw.json to resolve "default" alias
-      const ocRaw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
-      const ocConfig = JSON.parse(ocRaw);
-      const defaultModelId = ocConfig.agents?.defaults?.model?.primary || "";
-      if (defaultModelId && modelNameMap[defaultModelId]) {
-        modelNameMap["default"] = modelNameMap[defaultModelId];
-      }
-    } catch { /* use raw ref if config unavailable */ }
+    } catch { /* use raw ref if OC unavailable */ }
 
     // Fetch OpenClaw cron jobs from file
     try {

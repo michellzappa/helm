@@ -1,9 +1,13 @@
 import os from "os";
 import { readFile } from "fs/promises";
 import { join } from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-interface ModelUsage {
+const execAsync = promisify(exec);
+
+export interface ModelUsage {
   modelId: string;
   jobs: Array<{
     jobId: string;
@@ -12,76 +16,56 @@ interface ModelUsage {
   }>;
 }
 
+// Build alias → canonical ID map from `openclaw models list --json`
+// Returns e.g. { haiku: "anthropic/claude-haiku-4-5", default: "anthropic/claude-sonnet-4-6", ... }
+async function buildAliasMap(): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  try {
+    const { stdout } = await execAsync("openclaw models list --json", { timeout: 8000 });
+    const { models = [] } = JSON.parse(stdout);
+    for (const m of models) {
+      const id: string = m.key;
+      map[id] = id; // full ID maps to itself
+      for (const tag of (m.tags ?? []) as string[]) {
+        if (tag === "default") map["default"] = id;
+        if (tag.startsWith("alias:")) map[tag.slice("alias:".length)] = id;
+        if (tag.startsWith("fallback")) map[tag] = id; // e.g. "fallback#1"
+      }
+    }
+  } catch { /* OC unavailable — map will be empty, refs used as-is */ }
+  return map;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ModelUsage[] | { error: string }>
 ) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
+  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    // Build model alias → canonical ID map dynamically from config files
-    const modelMap: Record<string, string> = {};
-    try {
-      const modelsRaw = await readFile(join(process.cwd(), "config/models.json"), "utf-8");
-      const modelsConfig = JSON.parse(modelsRaw);
-      for (const m of (modelsConfig.models || [])) {
-        modelMap[m.id] = m.id;
-        const short = m.id.split("/").pop();
-        if (short) modelMap[short] = m.id;
-      }
-      const ocRaw = await readFile(join(os.homedir(), ".openclaw/openclaw.json"), "utf-8");
-      const ocConfig = JSON.parse(ocRaw);
-      const defaultId = ocConfig.agents?.defaults?.model?.primary || "";
-      if (defaultId) modelMap["default"] = defaultId;
-      const primaryAlias = ocConfig.agents?.defaults?.model?.primaryAlias || "";
-      if (primaryAlias && defaultId) modelMap[primaryAlias] = defaultId;
-    } catch { /* fallback: use raw ref as ID */ }
+    const [aliasMap, cronsRaw] = await Promise.all([
+      buildAliasMap(),
+      readFile(join(os.homedir(), ".openclaw/cron/jobs.json"), "utf-8"),
+    ]);
 
-    // Read cron jobs
-    const cronsPath = join(os.homedir(), ".openclaw/cron/jobs.json");
-    const content = await readFile(cronsPath, "utf-8");
-    const cronData = JSON.parse(content);
-    const cronJobs = cronData.jobs || [];
-
-    // Build usage map
+    const cronJobs = JSON.parse(cronsRaw).jobs ?? [];
     const usageMap = new Map<string, ModelUsage>();
 
     for (const job of cronJobs) {
-      const jobName = job.payload?.name || job.name || "Unknown Job";
-      let modelRef = job.payload?.model || "default";
-      
-      // Normalize model reference
-      let modelId = modelMap[modelRef] || "anthropic/claude-opus-4-6";
+      const jobName: string = job.name || job.payload?.name || "Unknown";
+      const modelRef: string = job.payload?.model || job.model || "default";
 
-      // Initialize if needed
-      if (!usageMap.has(modelId)) {
-        usageMap.set(modelId, {
-          modelId,
-          jobs: [],
-        });
-      }
+      // Resolve alias → canonical ID; fall back to ref itself if unknown
+      const modelId = aliasMap[modelRef] ?? modelRef;
 
-      // Add job to usage
-      const usage = usageMap.get(modelId)!;
-      usage.jobs.push({
-        jobId: job.id,
-        jobName,
-        modelRef,
-      });
+      if (!usageMap.has(modelId)) usageMap.set(modelId, { modelId, jobs: [] });
+      usageMap.get(modelId)!.jobs.push({ jobId: job.id, jobName, modelRef });
     }
 
-    // Convert map to array and sort
-    const result = Array.from(usageMap.values()).sort((a, b) =>
-      a.modelId.localeCompare(b.modelId)
+    res.status(200).json(
+      Array.from(usageMap.values()).sort((a, b) => a.modelId.localeCompare(b.modelId))
     );
-
-    res.status(200).json(result);
-  } catch (error) {
-    console.error("[model-usage API] Error:", error);
-    res.status(500).json({
-      error: `Failed to fetch model usage: ${(error as Error).message}`,
-    });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
 }
