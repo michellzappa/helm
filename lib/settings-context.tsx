@@ -15,7 +15,7 @@ export interface AppSettings {
 
 const DEFAULTS: AppSettings = {
   showSidebarCounts: true,
-  themeColor: "gray",
+  themeColor: "lobster", // overridden by /api/config on mount
   refreshInterval: 30_000,
 };
 
@@ -36,22 +36,37 @@ const SettingsContext = createContext<SettingsContextValue>({
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULTS);
 
-  // Load from localStorage on mount (client-side only)
+  // 1. Load localStorage immediately (fast, avoids UI flash for non-color settings)
+  // 2. Fetch /api/config for authoritative themeColor (server-side, device-agnostic)
   useEffect(() => {
+    // Local prefs first
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setSettings({ ...DEFAULTS, ...JSON.parse(stored) });
-      }
-    } catch {
-      // ignore
-    }
+      if (stored) setSettings(prev => ({ ...prev, ...JSON.parse(stored) }));
+    } catch { /* ignore */ }
+
+    // Server color overrides local — this is the source of truth
+    fetch("/api/config")
+      .then(r => r.json())
+      .then(({ themeColor }: { themeColor?: string }) => {
+        if (themeColor) setSettings(prev => ({ ...prev, themeColor }));
+      })
+      .catch(() => { /* stay with local/default */ });
   }, []);
 
   const setSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => {
       const next = { ...prev, [key]: value };
+      // Persist all settings locally
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+      // Persist themeColor server-side (authoritative across devices)
+      if (key === "themeColor") {
+        fetch("/api/config", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ themeColor: value }),
+        }).catch(() => {});
+      }
       return next;
     });
   };
@@ -59,6 +74,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const resetSettings = () => {
     setSettings(DEFAULTS);
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    fetch("/api/config", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ themeColor: DEFAULTS.themeColor }),
+    }).catch(() => {});
   };
 
   return (
