@@ -18,8 +18,9 @@ type WindowKey = "today" | "7d" | "30d" | "all";
 const KINDS: SessionEntry["kind"][] = ["direct", "cron", "telegram", "whatsapp", "api", "other"];
 
 function fmtCost(eur: number): string {
-  if (eur === 0) return "€0.000";
-  if (eur < 0.001) return "< €0.001";
+  if (eur === 0) return "€0.00";
+  if (eur < 0.01) return "< €0.01";
+  if (eur >= 1) return "€" + eur.toFixed(2);
   return "€" + eur.toFixed(3);
 }
 
@@ -133,9 +134,9 @@ export default function CostsPage() {
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Costs</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold">Costs <span className="text-sm font-normal text-muted-foreground align-middle">estimated</span></h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {loading ? "…" : `${sessions.length} sessions · ${fmtCost(summary.all)} all time`}
+            {loading ? "…" : `${sessions.length} sessions · ${fmtCost(summary.all)} estimated (API-equivalent)`}
           </p>
         </div>
 
