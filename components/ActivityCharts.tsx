@@ -306,6 +306,18 @@ function fmtTime(tsMs: number) {
   }).format(new Date(tsMs));
 }
 
+function fmtRelative(tsMs: number): string {
+  const s = Math.floor((Date.now() - tsMs) / 1000);
+  if (s < 60)   return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60)   return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24)   return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30)   return `${d}d ago`;
+  return `${Math.floor(d / 30)}mo ago`;
+}
+
 type LevelFilter = "all" | "error" | "warn";
 
 function LevelPill({
@@ -564,10 +576,13 @@ function ErrorLog({
                       </span>
 
                       <div className="min-w-0 flex-1">
-                        {/* Time + subsystem row */}
+                        {/* Time + relative + subsystem row */}
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                             {fmtTime(entry.tsMs)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0">
+                            {fmtRelative(entry.tsMs)}
                           </span>
                           {entry.subsystem && (
                             <span className="text-[10px] font-mono text-muted-foreground/80 truncate">
