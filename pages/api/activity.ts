@@ -199,8 +199,8 @@ async function cronStats(): Promise<{ success: number; fail: number; total: numb
   } catch { return { success: 0, fail: 0, total: 0 }; }
 }
 
-const MAX_ERRORS = 50;
-const MAX_WARNS  = 50;
+const MAX_ERRORS = 200;
+const MAX_WARNS  = 100;
 
 // High-volume, low-signal WARN patterns to suppress (WebSocket connection lifecycle noise)
 const WARN_NOISE_PREFIXES = [
