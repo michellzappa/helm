@@ -3,13 +3,9 @@ import Layout from "@/components/Layout";
 import { ActivityCharts } from "@/components/ActivityCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Brain, Bot, Calendar, History, Server, Zap, FolderOpen,
-  Cpu, Radio, KeyRound, Send,
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
   Droplets, Wind, Network,
 } from "lucide-react";
-import Link from "next/link";
-import { useCounts } from "@/lib/counts-context";
 import { useAutoRefresh } from "@/lib/settings-context";
 import type { SystemMetrics } from "./api/system";
 import type { WeatherData } from "./api/weather";
@@ -296,21 +292,6 @@ function TailscaleCard() {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { counts } = useCounts();
-
-  const stats = [
-    { label: "Agents",      value: counts?.agents,        icon: Bot,      href: "/agents"      },
-    { label: "Channels",    value: counts?.channels,      icon: Radio,    href: "/channels"    },
-    { label: "Credentials", value: counts?.credentials,   icon: KeyRound, href: "/credentials" },
-    { label: "Delivery",    value: counts?.deliveryQueue, icon: Send,     href: "/delivery"    },
-    { label: "Memory",      value: counts?.memory,        icon: Brain,    href: "/memory"      },
-    { label: "Models",      value: counts?.models,        icon: Cpu,      href: "/models"      },
-    { label: "Nodes",       value: counts?.nodes,         icon: Server,   href: "/nodes"       },
-    { label: "Scheduled",   value: counts?.scheduled,     icon: Calendar, href: "/scheduled"   },
-    { label: "Sessions",    value: counts?.sessions,      icon: History,  href: "/sessions"    },
-    { label: "Skills",      value: counts?.skills,        icon: Zap,      href: "/skills"      },
-    { label: "Workspaces",  value: counts?.workspaces,    icon: FolderOpen, href: "/workspaces" },
-  ];
 
   return (
     <Layout>
@@ -318,28 +299,6 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
-        </div>
-
-        {/* Count tiles */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
-          {stats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Link key={stat.label} href={stat.href} className="block">
-                <Card className="cursor-pointer hover:shadow-md active:scale-[0.98] transition-all h-full">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                    <CardTitle className="text-xs sm:text-sm font-medium">{stat.label}</CardTitle>
-                    <Icon className="h-3 sm:h-4 w-3 sm:w-4 text-muted-foreground flex-shrink-0" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xl sm:text-2xl font-bold">
-                      {counts === null ? "—" : (stat.value ?? 0)}
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
         </div>
 
         {/* Weather · System · Tailscale */}
