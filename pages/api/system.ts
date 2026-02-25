@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import { promisify } from "util";
+import os from "os";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const execAsync = promisify(exec);
@@ -8,6 +9,8 @@ export interface SystemMetrics {
   cpu: { pct: number; loadAvg: [number, number, number] };
   ram: { usedBytes: number; totalBytes: number; pct: number };
   disk: { usedBytes: number; totalBytes: number; pct: number; mount: string };
+  uptimeSeconds: number;
+  hostname: string;
 }
 
 async function getCpu(): Promise<SystemMetrics["cpu"]> {
@@ -72,7 +75,11 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
   }
   try {
     const [cpu, ram, disk] = await Promise.all([getCpu(), getRam(), getDisk()]);
-    const data: SystemMetrics = { cpu, ram, disk };
+    const data: SystemMetrics = {
+      cpu, ram, disk,
+      uptimeSeconds: os.uptime(),
+      hostname: os.hostname(),
+    };
     _cache = { data, at: Date.now() };
     res.json(data);
   } catch (err: unknown) {

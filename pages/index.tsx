@@ -6,13 +6,14 @@ import {
   Brain, Bot, Calendar, History, Server, Zap, FolderOpen,
   Cpu, Radio, KeyRound, Send,
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
-  Droplets, Wind,
+  Droplets, Wind, Network,
 } from "lucide-react";
 import Link from "next/link";
 import { useCounts } from "@/lib/counts-context";
 import { useAutoRefresh } from "@/lib/settings-context";
 import type { SystemMetrics } from "./api/system";
 import type { WeatherData } from "./api/weather";
+import type { TailscaleData } from "./api/tailscale";
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -20,6 +21,15 @@ function fmtBytes(bytes: number): string {
   if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + " GB";
   if (bytes >= 1e6) return (bytes / 1e6).toFixed(0) + " MB";
   return (bytes / 1e3).toFixed(0) + " KB";
+}
+
+function fmtUptime(secs: number): string {
+  const d = Math.floor(secs / 86400);
+  const h = Math.floor((secs % 86400) / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
 // WMO weather code → Lucide icon
@@ -196,7 +206,87 @@ function SystemCard() {
             <MetricBar label="CPU"  pct={metrics.cpu.pct}  value={`${metrics.cpu.pct.toFixed(1)}%`} />
             <MetricBar label="RAM"  pct={metrics.ram.pct}  value={`${fmtBytes(metrics.ram.usedBytes)} / ${fmtBytes(metrics.ram.totalBytes)}`} />
             <MetricBar label="Disk" pct={metrics.disk.pct} value={`${fmtBytes(metrics.disk.usedBytes)} / ${fmtBytes(metrics.disk.totalBytes)}`} />
+            <div className="pt-2 border-t border-border space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Uptime</span>
+                <span className="tabular-nums">{fmtUptime(metrics.uptimeSeconds)}</span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Host</span>
+                <span className="truncate ml-4 text-right">{metrics.hostname}</span>
+              </div>
+            </div>
           </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Tailscale card ────────────────────────────────────────────────────────
+
+function TailscaleCard() {
+  const [ts, setTs]     = useState<TailscaleData | null>(null);
+  const [error, setErr] = useState(false);
+
+  useAutoRefresh(() => {
+    fetch("/api/tailscale")
+      .then(r => r.json())
+      .then(d => { if (d.error) setErr(true); else { setTs(d); setErr(false); } })
+      .catch(() => setErr(true));
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">Tailscale</CardTitle>
+            {ts && (
+              <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                {ts.self.ip}
+              </p>
+            )}
+          </div>
+          <Network className="h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {error && <p className="text-sm text-muted-foreground">Unavailable</p>}
+
+        {!ts && !error && (
+          <div className="space-y-2">
+            {[0,1,2].map(i => (
+              <div key={i} className="h-4 bg-muted rounded animate-pulse" style={{ width: `${70 + i * 10}%` }} />
+            ))}
+          </div>
+        )}
+
+        {ts && (
+          <div className="space-y-1.5">
+            {ts.peers.map(peer => (
+              <div key={peer.ip} className="flex items-center gap-2 text-[11px]">
+                {/* Status dot */}
+                <span
+                  className="h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{
+                    backgroundColor: peer.active
+                      ? "#22c55e"   // green  — active (recent traffic)
+                      : peer.online
+                        ? "#f59e0b" // amber  — online, idle
+                        : "#6b7280", // gray  — offline
+                    opacity: peer.online ? 1 : 0.4,
+                  }}
+                />
+                <span className="font-medium truncate flex-1">{peer.name}</span>
+                <span className="font-mono text-muted-foreground shrink-0">{peer.ip}</span>
+              </div>
+            ))}
+            <p className="text-[10px] text-muted-foreground pt-1 border-t border-border">
+              {ts.online}/{ts.peers.length} online
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -252,10 +342,11 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Weather + System side by side */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Weather · System · Tailscale */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <WeatherCard />
           <SystemCard />
+          <TailscaleCard />
         </div>
 
         {/* Activity charts + log */}
