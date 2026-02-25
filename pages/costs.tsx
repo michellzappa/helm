@@ -9,13 +9,13 @@ import {
 } from "recharts";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAutoRefresh, useSettings } from "@/lib/settings-context";
+import { CURRENCY_RATES, useAutoRefresh, useSettings } from "@/lib/settings-context";
 import { THEME_COLORS } from "@/lib/theme-colors";
 import type { CostHistoryData } from "./api/cost-history";
 
-function fmtCost(usd: number): string {
-  if (usd >= 1) return "$" + usd.toFixed(2);
-  return "$" + usd.toFixed(3);
+function fmtCost(value: number, symbol: string): string {
+  if (value >= 1) return symbol + value.toFixed(2);
+  return symbol + value.toFixed(3);
 }
 
 function dayLabel(iso: string): string {
@@ -27,6 +27,8 @@ export default function CostsPage() {
   const [data, setData] = useState<CostHistoryData | null>(null);
   const [loading, setLoading] = useState(true);
   const { settings } = useSettings();
+  const currencyInfo = CURRENCY_RATES[settings.currency];
+  const convertCost = (usdValue: number) => usdValue * currencyInfo.rate;
 
   useAutoRefresh(() => {
     fetch("/api/cost-history")
@@ -45,27 +47,29 @@ export default function CostsPage() {
     const total = rows.reduce((sum, x) => sum + x.cost, 0);
     return rows.map(x => ({
       ...x,
+      displayCost: convertCost(x.cost),
       share: total > 0 ? (x.cost / total) * 100 : 0,
     }));
-  }, [data?.byModel]);
+  }, [data?.byModel, currencyInfo.rate]);
 
   const costByKind = useMemo(() => {
     const rows = (data?.byKind ?? []).filter(x => x.cost > 0);
     const total = rows.reduce((sum, x) => sum + x.cost, 0);
     return rows.map(x => ({
       ...x,
+      displayCost: convertCost(x.cost),
       share: total > 0 ? (x.cost / total) * 100 : 0,
     }));
-  }, [data?.byKind]);
+  }, [data?.byKind, currencyInfo.rate]);
 
   const dailyCosts = useMemo(
     () =>
       (data?.daily ?? []).map(row => ({
         date: row.date,
         label: dayLabel(row.date),
-        cost: row.cost,
+        cost: convertCost(row.cost),
       })),
-    [data?.daily]
+    [data?.daily, currencyInfo.rate]
   );
 
   return (
@@ -74,7 +78,7 @@ export default function CostsPage() {
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Costs</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {loading ? "…" : `${fmtCost(summary.allTime)} USD total`}
+            {loading ? "…" : `${fmtCost(convertCost(summary.allTime), currencyInfo.symbol)} total`}
           </p>
         </div>
 
@@ -84,7 +88,7 @@ export default function CostsPage() {
               <CardTitle className="text-sm font-medium">Today</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(summary.today)}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(convertCost(summary.today), currencyInfo.symbol)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -92,7 +96,7 @@ export default function CostsPage() {
               <CardTitle className="text-sm font-medium">7 days</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(summary.week)}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(convertCost(summary.week), currencyInfo.symbol)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -100,7 +104,7 @@ export default function CostsPage() {
               <CardTitle className="text-sm font-medium">30 days</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(summary.month)}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(convertCost(summary.month), currencyInfo.symbol)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -108,7 +112,7 @@ export default function CostsPage() {
               <CardTitle className="text-sm font-medium">All time</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(summary.allTime)}</p>
+              <p className="text-xl sm:text-2xl font-semibold tabular-nums">{fmtCost(convertCost(summary.allTime), currencyInfo.symbol)}</p>
             </CardContent>
           </Card>
         </div>
@@ -126,7 +130,7 @@ export default function CostsPage() {
                   <div key={row.model} className="space-y-1">
                     <div className="flex justify-between gap-3 text-xs">
                       <span className="truncate font-medium" title={row.model}>{row.model}</span>
-                      <span className="tabular-nums text-muted-foreground">{fmtCost(row.cost)} ({row.share.toFixed(1)}%)</span>
+                      <span className="tabular-nums text-muted-foreground">{fmtCost(row.displayCost, currencyInfo.symbol)} ({row.share.toFixed(1)}%)</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div
@@ -152,7 +156,7 @@ export default function CostsPage() {
                   <div key={row.kind} className="space-y-1">
                     <div className="flex justify-between gap-3 text-xs">
                       <span className="capitalize font-medium">{row.kind}</span>
-                      <span className="tabular-nums text-muted-foreground">{fmtCost(row.cost)} ({row.share.toFixed(1)}%)</span>
+                      <span className="tabular-nums text-muted-foreground">{fmtCost(row.displayCost, currencyInfo.symbol)} ({row.share.toFixed(1)}%)</span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div
@@ -176,9 +180,9 @@ export default function CostsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dailyCosts}>
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={4} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${Number(v).toFixed(2)}`} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmtCost(Number(v), currencyInfo.symbol)} />
                   <Tooltip
-                    formatter={(value) => [fmtCost(Number(value ?? 0)), "Cost"]}
+                    formatter={(value) => [fmtCost(Number(value ?? 0), currencyInfo.symbol), "Cost"]}
                     labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                   />
                   <Bar dataKey="cost" fill={accent} radius={[4, 4, 0, 0]} />

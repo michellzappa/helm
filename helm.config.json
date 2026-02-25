@@ -1,4 +1,18 @@
 {
   "themeColor": "lobster",
-  "colorMode": "dark"
+  "colorMode": "dark",
+  "sidebarPosition": "left",
+  "showSidebarCounts": true,
+  "hiddenSidebarItems": [],
+  "dashboardCards": {
+    "weather": true,
+    "system": true,
+    "tailscale": true,
+    "activity": true
+  },
+  "currency": "EUR",
+  "dateFormat": "DD/MM",
+  "timeFormat": "24h",
+  "temperatureUnit": "C",
+  "refreshInterval": 30000
 }

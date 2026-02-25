@@ -4,8 +4,9 @@ import { Calendar, Clock, Zap, Play, Loader2, CheckCircle2, XCircle } from "luci
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useState } from "react";
-import { useAutoRefresh } from "@/lib/settings-context";
+import { useAutoRefresh, useSettings } from "@/lib/settings-context";
 import { useCounts } from "@/lib/counts-context";
+import { fmtAge, fmtDate, fmtTime } from "@/lib/format";
 
 interface ScheduledTask {
   id: string;
@@ -21,6 +22,7 @@ interface ScheduledTask {
 
 export default function ScheduledPage() {
   const { counts } = useCounts();
+  const { settings } = useSettings();
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,31 +88,16 @@ export default function ScheduledPage() {
     } else if (diffHours < 24) {
       return `In ${diffHours}h ${diffMins % 60}m`;
     } else {
-      return `In ${diffDays}d ${next.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+      return `In ${diffDays}d (${fmtDate(next, settings.dateFormat)} ${fmtTime(next, settings.timeFormat)})`;
     }
   };
 
   const getLastRun = (lastRunMs?: number) => {
     if (!lastRunMs) return "Never";
-    const now = new Date();
     const last = new Date(lastRunMs);
-    const diffMs = now.getTime() - lastRunMs;
-    
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) {
-      return "Just now";
-    } else if (diffMins < 60) {
-      return `${diffMins} min ago`;
-    } else if (diffHours < 24) {
-      return `${diffHours}h ago`;
-    } else if (diffDays < 7) {
-      return `${diffDays}d ago`;
-    } else {
-      return last.toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-    }
+    const diffMs = Date.now() - lastRunMs;
+    if (diffMs < 7 * 24 * 60 * 60 * 1000) return fmtAge(lastRunMs);
+    return `${fmtDate(last, settings.dateFormat)} ${fmtTime(last, settings.timeFormat)}`;
   };
 
   const getTypeDisplay = (task: ScheduledTask) => {

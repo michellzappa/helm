@@ -1,25 +1,36 @@
 /**
  * System-level Helm config — stored in helm.config.json at the project root.
- * themeColor lives here so it's consistent across all browsers/devices.
- * Other UX settings (refresh interval, sidebar counts) stay in localStorage.
+ * All settings live here so they're consistent across browsers/devices.
  */
 import fs from "fs";
 import path from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { THEME_COLORS, DEFAULT_THEME_COLOR } from "@/lib/theme-colors";
+import { THEME_COLORS } from "@/lib/theme-colors";
+import type { AppSettings } from "@/lib/settings-context";
 
 const CONFIG_PATH = path.join(process.cwd(), "helm.config.json");
 
-export interface HelmConfig {
-  themeColor: string;
-  colorMode: "light" | "dark" | "system";
-}
+type HelmConfig = Partial<AppSettings>;
+
+const DEFAULTS: HelmConfig = {
+  themeColor: "lobster",
+  colorMode: "dark",
+  sidebarPosition: "left",
+  showSidebarCounts: true,
+  hiddenSidebarItems: [],
+  dashboardCards: { weather: true, system: true, tailscale: true, activity: true },
+  currency: "EUR",
+  dateFormat: "DD/MM",
+  timeFormat: "24h",
+  temperatureUnit: "C",
+  refreshInterval: 30_000,
+};
 
 function readConfig(): HelmConfig {
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8")) };
   } catch {
-    return { themeColor: DEFAULT_THEME_COLOR, colorMode: "dark" as const };
+    return { ...DEFAULTS };
   }
 }
 
@@ -35,17 +46,22 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "PATCH") {
     const body = req.body as Partial<HelmConfig>;
     const current = readConfig();
+
+    // Validate specific fields
     if (body.themeColor !== undefined && !THEME_COLORS.find(c => c.id === body.themeColor)) {
       return res.status(400).json({ error: "Invalid themeColor" });
     }
     if (body.colorMode !== undefined && !["light", "dark", "system"].includes(body.colorMode)) {
       return res.status(400).json({ error: "Invalid colorMode" });
     }
-    const updated: HelmConfig = {
-      ...current,
-      ...(body.themeColor ? { themeColor: body.themeColor } : {}),
-      ...(body.colorMode ? { colorMode: body.colorMode } : {}),
-    };
+    if (body.currency !== undefined && !["EUR", "USD", "GBP"].includes(body.currency)) {
+      return res.status(400).json({ error: "Invalid currency" });
+    }
+    if (body.sidebarPosition !== undefined && !["left", "right"].includes(body.sidebarPosition)) {
+      return res.status(400).json({ error: "Invalid sidebarPosition" });
+    }
+
+    const updated: HelmConfig = { ...current, ...body };
     writeConfig(updated);
     return res.json(updated);
   }

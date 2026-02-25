@@ -35,7 +35,7 @@ import { useSettings } from "@/lib/settings-context";
 import { SettingsModal } from "@/components/SettingsModal";
 import type { SidebarCounts } from "@/lib/types";
 
-const MENU_ITEMS: {
+export const MENU_ITEMS: {
   href: string;
   label: string;
   icon: React.ElementType;
@@ -72,6 +72,9 @@ function LayoutInner({
   const { counts } = useCounts();
   const { settings } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const visibleMenuItems = MENU_ITEMS.filter(item => (
+    item.href === "/" || !settings.hiddenSidebarItems.includes(item.href)
+  ));
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -89,7 +92,7 @@ function LayoutInner({
 
   return (
     <>
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="icon" side={settings.sidebarPosition}>
         <SidebarHeader>
           <div className="flex items-center gap-2 px-2 py-2 overflow-hidden">
             <SidebarTrigger className="shrink-0" />
@@ -130,7 +133,7 @@ function LayoutInner({
             <SidebarGroupLabel>System</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {MENU_ITEMS.map((item) => {
+                {visibleMenuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = router.pathname === item.href;
                   const count = item.countKey && counts ? counts[item.countKey] : undefined;
@@ -179,7 +182,11 @@ function LayoutInner({
           </SidebarMenu>
         </SidebarFooter>
 
-        <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
+        <SettingsModal
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          menuItems={MENU_ITEMS.map(({ href, label }) => ({ href, label }))}
+        />
 
         <SidebarRail />
       </Sidebar>
@@ -227,6 +234,7 @@ function LayoutInner({
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [cmdOpen, setCmdOpen] = useState(false);
+  const { settings } = useSettings();
 
   // ⌘K / Ctrl+K global shortcut
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -243,7 +251,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <SidebarProvider>
+      <SidebarProvider className={settings.sidebarPosition === "right" ? "flex-row-reverse" : undefined}>
         <LayoutInner cmdOpen={cmdOpen} setCmdOpen={setCmdOpen}>
           {children}
         </LayoutInner>

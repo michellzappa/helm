@@ -8,18 +8,55 @@ export const REFRESH_OPTIONS = [
 ] as const;
 
 export type ColorMode = "light" | "dark" | "system";
+export type Currency = "EUR" | "USD" | "GBP";
+export type DateFormat = "DD/MM" | "MM/DD";
+export type TimeFormat = "24h" | "12h";
+export type TempUnit = "C" | "F";
+export type SidebarPosition = "left" | "right";
+
+export interface DashboardCards {
+  weather: boolean;
+  system: boolean;
+  tailscale: boolean;
+  activity: boolean;
+}
 
 export interface AppSettings {
-  showSidebarCounts: boolean;
+  // Appearance
   themeColor: string;
   colorMode: ColorMode;
+  // Layout
+  sidebarPosition: SidebarPosition;
+  showSidebarCounts: boolean;
+  hiddenSidebarItems: string[]; // href paths to hide
+  // Dashboard
+  dashboardCards: DashboardCards;
+  // Formatting
+  currency: Currency;
+  dateFormat: DateFormat;
+  timeFormat: TimeFormat;
+  temperatureUnit: TempUnit;
+  // Behavior
   refreshInterval: number; // ms
 }
 
+export const CURRENCY_RATES: Record<Currency, { symbol: string; rate: number }> = {
+  USD: { symbol: "$", rate: 1 },
+  EUR: { symbol: "€", rate: 0.92 },
+  GBP: { symbol: "£", rate: 0.79 },
+};
+
 const DEFAULTS: AppSettings = {
-  showSidebarCounts: true,
   themeColor: "lobster", // overridden by /api/config on mount
   colorMode: "dark",
+  sidebarPosition: "left",
+  showSidebarCounts: true,
+  hiddenSidebarItems: [],
+  dashboardCards: { weather: true, system: true, tailscale: true, activity: true },
+  currency: "EUR",
+  dateFormat: "DD/MM",
+  timeFormat: "24h",
+  temperatureUnit: "C",
   refreshInterval: 30_000,
 };
 
@@ -52,12 +89,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     // Server color overrides local — this is the source of truth
     fetch("/api/config")
       .then(r => r.json())
-      .then(({ themeColor, colorMode }: { themeColor?: string; colorMode?: ColorMode }) => {
-        setSettings(prev => ({
-          ...prev,
-          ...(themeColor ? { themeColor } : {}),
-          ...(colorMode ? { colorMode } : {}),
-        }));
+      .then((serverCfg: Partial<AppSettings>) => {
+        setSettings(prev => ({ ...prev, ...serverCfg }));
       })
       .catch(() => { /* stay with local/default */ });
   }, []);
@@ -67,14 +100,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev, [key]: value };
       // Persist all settings locally
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-      // Persist themeColor + colorMode server-side (authoritative across devices)
-      if (key === "themeColor" || key === "colorMode") {
-        fetch("/api/config", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [key]: value }),
-        }).catch(() => {});
-      }
+      // Persist all settings server-side (authoritative across devices)
+      fetch("/api/config", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      }).catch(() => {});
       return next;
     });
   };
@@ -85,7 +116,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     fetch("/api/config", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ themeColor: DEFAULTS.themeColor, colorMode: DEFAULTS.colorMode }),
+      body: JSON.stringify(DEFAULTS),
     }).catch(() => {});
   };
 

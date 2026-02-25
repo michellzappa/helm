@@ -3,8 +3,9 @@ import Link from "next/link";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAutoRefresh, useSettings } from "@/lib/settings-context";
+import { useAutoRefresh, useSettings, type DateFormat } from "@/lib/settings-context";
 import { THEME_COLORS } from "@/lib/theme-colors";
+import { fmtAge, fmtDate } from "@/lib/format";
 import {
   AlertTriangle,
   Clock,
@@ -55,17 +56,6 @@ const TYPE_LABELS: Record<ActivityType, string> = {
   error: "Errors",
 };
 
-function relTime(ts: number): string {
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return `${Math.max(0, s)}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
-}
-
 function iconFor(type: ActivityType) {
   if (type === "tool_call") return Wrench;
   if (type === "user_message" || type === "assistant_message") return MessageSquare;
@@ -74,12 +64,12 @@ function iconFor(type: ActivityType) {
   return MessageSquare;
 }
 
-function formatRange(sinceMs: number): string {
+function formatRange(sinceMs: number, dateFormat: DateFormat): string {
   const since = new Date(sinceMs);
   const now = new Date();
   const sameDay = since.toDateString() === now.toDateString();
   if (sameDay) return "last 24h";
-  return `${since.toLocaleDateString()} - ${now.toLocaleDateString()}`;
+  return `${fmtDate(since, dateFormat)} - ${fmtDate(now, dateFormat)}`;
 }
 
 export default function ActivitiesPage() {
@@ -132,7 +122,7 @@ export default function ActivitiesPage() {
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Activities</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {loading ? "…" : `${data?.total ?? 0} events`} · {formatRange(since)}
+            {loading ? "…" : `${data?.total ?? 0} events`} · {formatRange(since, settings.dateFormat)}
           </p>
         </div>
 
@@ -238,7 +228,7 @@ export default function ActivitiesPage() {
                     </div>
 
                     <div className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {relTime(activity.timestamp)}
+                      {fmtAge(activity.timestamp)}
                     </div>
                   </div>
                 </CardContent>

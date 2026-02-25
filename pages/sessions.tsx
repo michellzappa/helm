@@ -5,6 +5,7 @@ import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useState } from "react";
 import { useAutoRefresh } from "@/lib/settings-context";
+import { fmtAge } from "@/lib/format";
 import type { SessionEntry, SessionsData } from "./api/sessions";
 
 const KIND_ICON: Record<SessionEntry["kind"], React.ReactNode> = {
@@ -27,18 +28,6 @@ function fmtCost(eur: number): string {
   if (eur < 0.001) return "< €0.001";
   if (eur < 0.01)  return "€" + eur.toFixed(4);
   return "€" + eur.toFixed(3);
-}
-
-function fmtAge(ms: number): string {
-  if (!ms) return "—";
-  const s = Math.floor((Date.now() - ms) / 1000);
-  if (s < 60)   return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60)   return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24)   return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
 }
 
 function modelShort(m: string | null): string {

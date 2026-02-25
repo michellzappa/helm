@@ -7,7 +7,8 @@ import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
   Droplets, Wind, Network,
 } from "lucide-react";
-import { useAutoRefresh } from "@/lib/settings-context";
+import { useAutoRefresh, useSettings } from "@/lib/settings-context";
+import { cn } from "@/lib/utils";
 import type { SystemMetrics } from "./api/system";
 import type { WeatherData } from "./api/weather";
 import type { TailscaleData } from "./api/tailscale";
@@ -53,11 +54,18 @@ function dayLabel(dateStr: string, i: number): string {
   return d.toLocaleDateString("en-US", { weekday: "short" });
 }
 
+function toDisplayTemp(celsius: number, unit: "C" | "F"): number {
+  if (unit === "F") return Math.round((celsius * 9) / 5 + 32);
+  return Math.round(celsius);
+}
+
 // ── Weather card ──────────────────────────────────────────────────────────
 
 function WeatherCard() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [error, setError]     = useState(false);
+  const { settings } = useSettings();
+  const unit = settings.temperatureUnit;
 
   useAutoRefresh(() => {
     fetch("/api/weather")
@@ -108,10 +116,10 @@ function WeatherCard() {
             {/* Temperature row */}
             <div className="flex items-end gap-2.5">
               <span className="text-4xl font-bold tabular-nums leading-none">
-                {weather.tempC}°
+                {toDisplayTemp(weather.tempC, unit)}°
               </span>
               <span className="text-sm text-muted-foreground pb-0.5">
-                feels {weather.feelsLikeC}°
+                feels {toDisplayTemp(weather.feelsLikeC, unit)}°
               </span>
             </div>
 
@@ -137,8 +145,8 @@ function WeatherCard() {
                       </span>
                       <DayIcon className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-[10px] tabular-nums">
-                        {day.maxC}°
-                        <span className="text-muted-foreground">/{day.minC}°</span>
+                        {toDisplayTemp(day.maxC, unit)}°
+                        <span className="text-muted-foreground">/{toDisplayTemp(day.minC, unit)}°</span>
                       </span>
                     </div>
                   );
@@ -342,6 +350,13 @@ function ActivitySummaryCard() {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const { settings } = useSettings();
+  const cards = [
+    { key: "weather", visible: settings.dashboardCards.weather, node: <WeatherCard /> },
+    { key: "system", visible: settings.dashboardCards.system, node: <SystemCard /> },
+    { key: "tailscale", visible: settings.dashboardCards.tailscale, node: <TailscaleCard /> },
+    { key: "activity", visible: settings.dashboardCards.activity, node: <ActivitySummaryCard /> },
+  ].filter(card => card.visible);
 
   return (
     <Layout>
@@ -352,12 +367,26 @@ export default function Dashboard() {
         </div>
 
         {/* Weather · System · Tailscale · Activity */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <WeatherCard />
-          <SystemCard />
-          <TailscaleCard />
-          <ActivitySummaryCard />
-        </div>
+        {cards.length > 0 ? (
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-4",
+              cards.length > 1 && "sm:grid-cols-2",
+              cards.length > 2 && "lg:grid-cols-3",
+              cards.length > 3 && "xl:grid-cols-4"
+            )}
+          >
+            {cards.map(card => (
+              <div key={card.key}>{card.node}</div>
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
+              No dashboard cards are enabled in Settings.
+            </CardContent>
+          </Card>
+        )}
 
         {/* Activity charts + log */}
         <ActivityCharts />
