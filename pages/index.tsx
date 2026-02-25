@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import Layout from "@/components/Layout";
 import { ActivityCharts } from "@/components/ActivityCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,10 @@ import { useAutoRefresh } from "@/lib/settings-context";
 import type { SystemMetrics } from "./api/system";
 import type { WeatherData } from "./api/weather";
 import type { TailscaleData } from "./api/tailscale";
+
+interface ActivitiesResponse {
+  total: number;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -289,6 +294,51 @@ function TailscaleCard() {
   );
 }
 
+function ActivitySummaryCard() {
+  const [total, setTotal] = useState<number | null>(null);
+  const [toolCalls, setToolCalls] = useState<number | null>(null);
+  const [messages, setMessages] = useState<number | null>(null);
+  const [cronRuns, setCronRuns] = useState<number | null>(null);
+
+  useAutoRefresh(() => {
+    const since = Date.now() - 24 * 60 * 60 * 1000;
+    Promise.all([
+      fetch(`/api/activities?since=${since}&limit=1`).then(r => r.json() as Promise<ActivitiesResponse>),
+      fetch(`/api/activities?since=${since}&limit=1&type=tool_call`).then(r => r.json() as Promise<ActivitiesResponse>),
+      fetch(`/api/activities?since=${since}&limit=1&type=user_message,assistant_message`).then(r => r.json() as Promise<ActivitiesResponse>),
+      fetch(`/api/activities?since=${since}&limit=1&type=cron_run`).then(r => r.json() as Promise<ActivitiesResponse>),
+    ])
+      .then(([all, tools, msgs, cron]) => {
+        setTotal(all.total);
+        setToolCalls(tools.total);
+        setMessages(msgs.total);
+        setCronRuns(cron.total);
+      })
+      .catch(() => {});
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">24h Activity</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-3xl font-bold tabular-nums">
+          {total ?? "…"}
+        </p>
+        <div className="space-y-1 text-xs text-muted-foreground">
+          <p><span className="tabular-nums text-foreground">{toolCalls ?? "…"}</span> tool calls</p>
+          <p><span className="tabular-nums text-foreground">{messages ?? "…"}</span> messages</p>
+          <p><span className="tabular-nums text-foreground">{cronRuns ?? "…"}</span> cron runs</p>
+        </div>
+        <Link href="/activities" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          View activity timeline
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -301,11 +351,12 @@ export default function Dashboard() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
         </div>
 
-        {/* Weather · System · Tailscale */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Weather · System · Tailscale · Activity */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <WeatherCard />
           <SystemCard />
           <TailscaleCard />
+          <ActivitySummaryCard />
         </div>
 
         {/* Activity charts + log */}
