@@ -43,6 +43,19 @@ export default async function handler(
       });
     }
 
+    if (ch.discord) {
+      const d = ch.discord;
+      channels.push({
+        id: "discord", name: "Discord", enabled: d.enabled ?? true,
+        dmPolicy: d.dmPolicy ?? "allowlist", groupPolicy: d.groupPolicy ?? "allowlist",
+        groups: Object.entries(d.guilds || {}).map(([id, cfg]: [string, any]) => ({
+          id, requireMention: cfg.requireMention ?? false,
+        })),
+        allowFrom: d.allowFrom || [],
+        extra: { streaming: d.streaming ?? "off" },
+      });
+    }
+
     res.status(200).json(channels);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
