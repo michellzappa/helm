@@ -4,9 +4,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSettings, REFRESH_OPTIONS } from "@/lib/settings-context";
+import { useSettings, REFRESH_OPTIONS, type ColorMode } from "@/lib/settings-context";
 import { THEME_COLORS } from "@/lib/theme-colors";
+import { Sun, Moon, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const COLOR_MODES: { id: ColorMode; label: string; icon: typeof Sun }[] = [
+  { id: "light",  label: "Light",  icon: Sun },
+  { id: "dark",   label: "Dark",   icon: Moon },
+  { id: "system", label: "System", icon: Monitor },
+];
 
 interface Props {
   open: boolean;
@@ -60,6 +67,32 @@ export function SettingsModal({ open, onOpenChange }: Props) {
           <p className="mt-2.5 text-xs text-muted-foreground h-3 transition-all">
             {THEME_COLORS.find(c => c.id === settings.themeColor)?.label ?? "Gray"}
           </p>
+
+          <Divider />
+
+          {/* ── Appearance ── */}
+          <SectionLabel>Appearance</SectionLabel>
+          <div className="flex gap-1.5">
+            {COLOR_MODES.map(mode => {
+              const active = settings.colorMode === mode.id;
+              const Icon = mode.icon;
+              return (
+                <button
+                  key={mode.id}
+                  onClick={() => setSetting("colorMode", mode.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors",
+                    active
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  <Icon className="h-3 w-3" />
+                  {mode.label}
+                </button>
+              );
+            })}
+          </div>
 
           <Divider />
 

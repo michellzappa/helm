@@ -12,13 +12,14 @@ const CONFIG_PATH = path.join(process.cwd(), "helm.config.json");
 
 export interface HelmConfig {
   themeColor: string;
+  colorMode: "light" | "dark" | "system";
 }
 
 function readConfig(): HelmConfig {
   try {
     return JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
   } catch {
-    return { themeColor: DEFAULT_THEME_COLOR };
+    return { themeColor: DEFAULT_THEME_COLOR, colorMode: "dark" as const };
   }
 }
 
@@ -32,11 +33,19 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === "PATCH") {
-    const { themeColor } = req.body as Partial<HelmConfig>;
-    if (!themeColor || !THEME_COLORS.find(c => c.id === themeColor)) {
+    const body = req.body as Partial<HelmConfig>;
+    const current = readConfig();
+    if (body.themeColor !== undefined && !THEME_COLORS.find(c => c.id === body.themeColor)) {
       return res.status(400).json({ error: "Invalid themeColor" });
     }
-    const updated: HelmConfig = { ...readConfig(), themeColor };
+    if (body.colorMode !== undefined && !["light", "dark", "system"].includes(body.colorMode)) {
+      return res.status(400).json({ error: "Invalid colorMode" });
+    }
+    const updated: HelmConfig = {
+      ...current,
+      ...(body.themeColor ? { themeColor: body.themeColor } : {}),
+      ...(body.colorMode ? { colorMode: body.colorMode } : {}),
+    };
     writeConfig(updated);
     return res.json(updated);
   }

@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { CountsProvider } from "@/lib/counts-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { ThemeColorApplier } from "@/components/ThemeColorApplier";
+import { ColorModeApplier } from "@/components/ColorModeApplier";
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
@@ -15,13 +16,19 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <title>Helm</title>
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-        {/* Apply theme based on OS preference to prevent flash */}
+        {/* Apply color mode early to prevent flash */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.classList.add('dark');
-              }
+              (function() {
+                try {
+                  var s = JSON.parse(localStorage.getItem('mc_settings') || '{}');
+                  var m = s.colorMode || 'dark';
+                } catch(e) { var m = 'dark'; }
+                var dark = m === 'dark' || (m === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (dark) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+              })();
             `,
           }}
         />
@@ -29,6 +36,7 @@ export default function App({ Component, pageProps }: AppProps) {
       <ThemeProvider>
         <SettingsProvider>
           <ThemeColorApplier />
+          <ColorModeApplier />
           <CountsProvider>
             <Component {...pageProps} />
           </CountsProvider>
