@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "screenshot": "node scripts/screenshot.mjs",
+    "install-hooks": "bash scripts/install-hooks.sh"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -31,6 +33,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.16",
+    "playwright": "^1.58.2",
     "postcss": "^8.4.32",
     "tailwindcss": "^4.2.1",
     "tailwindcss-animate": "^1.0.7",
