@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/command";
 import {
   LayoutDashboard, Brain, Calendar, History, Bot, Server, Zap,
-  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings,
+  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings, Euro,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -51,6 +51,7 @@ const MENU_ITEMS: {
   { href: "/nodes",          label: "Nodes",          icon: Server,      countKey: "nodes"       },
   { href: "/scheduled",      label: "Scheduled",      icon: Calendar,    countKey: "scheduled"   },
   { href: "/sessions",       label: "Sessions",       icon: History,     countKey: "sessions"    },
+  { href: "/costs",          label: "Costs",          icon: Euro                                },
   { href: "/skills",         label: "Skills",         icon: Zap,         countKey: "skills"      },
   { href: "/workspaces",     label: "Workspaces",     icon: FolderOpen,  countKey: "workspaces"  },
 ];
