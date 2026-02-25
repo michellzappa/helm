@@ -201,7 +201,13 @@ function HourlyChart({ data }: { data: ActivityData | null }) {
 
 // ── Channel Breakdown + Cron health ────────────────────────────────────────
 
-function ChannelBreakdown({ data }: { data: ActivityData | null }) {
+function ChannelBreakdown({
+  data,
+  onCronFailClick,
+}: {
+  data: ActivityData | null;
+  onCronFailClick?: () => void;
+}) {
   if (!data) {
     return (
       <Card>
@@ -262,13 +268,22 @@ function ChannelBreakdown({ data }: { data: ActivityData | null }) {
             <span className="text-green-600 dark:text-green-400 tabular-nums">
               ✓ {cron.success} ok
             </span>
-            <span
-              className={`tabular-nums ${
-                cron.fail > 0 ? "text-red-500" : "text-muted-foreground"
-              }`}
-            >
-              ✗ {cron.fail} failed
-            </span>
+            {cron.fail > 0 && onCronFailClick ? (
+              <button
+                type="button"
+                onClick={onCronFailClick}
+                title="Show cron errors in log"
+                className="tabular-nums font-medium underline underline-offset-2 decoration-dotted transition-opacity hover:opacity-70"
+                style={{ color: "var(--theme-accent)" }}
+              >
+                ✗ {cron.fail} failed
+              </button>
+            ) : (
+              <span className={`tabular-nums ${cron.fail > 0 ? "" : "text-muted-foreground"}`}
+                style={cron.fail > 0 ? { color: "var(--theme-accent)" } : undefined}>
+                ✗ {cron.fail} failed
+              </span>
+            )}
           </div>
         </div>
       </CardContent>
@@ -297,31 +312,38 @@ function LevelPill({
   label,
   active,
   count,
-  color,
+  accentActive,
+  countStyle,
   onClick,
 }: {
   label: string;
   active: boolean;
   count?: number;
-  color?: string;
+  accentActive?: boolean;   // use --theme-accent instead of foreground when active
+  countStyle?: React.CSSProperties;
   onClick: () => void;
 }) {
+  const activeStyle: React.CSSProperties = accentActive && active
+    ? { backgroundColor: "var(--theme-accent)", color: "#fff" }
+    : {};
   return (
     <button
       type="button"
       onClick={onClick}
+      style={activeStyle}
       className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
-        active
+        active && !accentActive
           ? "bg-foreground text-background"
-          : "bg-muted text-muted-foreground hover:bg-muted/80"
+          : !active
+          ? "bg-muted text-muted-foreground hover:bg-muted/80"
+          : ""
       }`}
     >
       {label}
       {count !== undefined && (
         <span
-          className={`tabular-nums text-[10px] ${
-            active ? "opacity-70" : color ?? ""
-          }`}
+          className={`tabular-nums text-[10px] ${active ? "opacity-70" : ""}`}
+          style={!active ? countStyle : undefined}
         >
           {count}
         </span>
@@ -330,13 +352,31 @@ function LevelPill({
   );
 }
 
-function ErrorLog({ data }: { data: ActivityData | null }) {
+function ErrorLog({
+  data,
+  cronJumpSeq = 0,
+  containerRef,
+}: {
+  data: ActivityData | null;
+  cronJumpSeq?: number;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
+}) {
   const [levelFilter, setLevelFilter] = useState<LevelFilter>("all");
   const [search, setSearch] = useState("");
   const [page, setPage]     = useState(0);
   const [sortAsc, setSortAsc] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Cron jump: when cronJumpSeq increments, filter to cron errors
+  useEffect(() => {
+    if (cronJumpSeq > 0) {
+      setLevelFilter("error");
+      setSearch("cron");
+      setPage(0);
+      setExpandedKey(null);
+    }
+  }, [cronJumpSeq]);
 
   // Reset to page 0 when filters change
   function setLevel(l: LevelFilter) { setLevelFilter(l); setPage(0); setExpandedKey(null); }
@@ -370,7 +410,7 @@ function ErrorLog({ data }: { data: ActivityData | null }) {
       const q = search.toLowerCase();
       return e.subsystem.toLowerCase().includes(q) || e.message.toLowerCase().includes(q);
     })
-    .slice() // avoid mutating
+    .slice()
     .sort((a, b) => sortAsc ? a.tsMs - b.tsMs : b.tsMs - a.tsMs);
 
   const total  = filtered.length;
@@ -382,161 +422,203 @@ function ErrorLog({ data }: { data: ActivityData | null }) {
   const hasFilters = levelFilter !== "all" || search.trim() !== "";
 
   return (
-    <Card>
-      {/* ── Header ── */}
-      <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle className="text-sm font-medium">Log</CardTitle>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Last 30 days</p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] shrink-0 pt-0.5">
-          {totalErr > 0 && (
-            <span className="font-medium text-red-500 tabular-nums">
-              {totalErr} error{totalErr !== 1 ? "s" : ""}
-            </span>
-          )}
-          {totalWarn > 0 && (
-            <span className="font-medium text-amber-500 dark:text-amber-400 tabular-nums">
-              {totalWarn} warning{totalWarn !== 1 ? "s" : ""}
-            </span>
-          )}
-          {allErrors.length === 0 && (
-            <span className="text-green-600 dark:text-green-400">All clear</span>
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-0">
-        {/* ── Controls bar ── */}
-        <div className="px-4 pb-3 flex flex-wrap items-center gap-2">
-          {/* Level filter pills */}
-          <div className="flex items-center gap-1">
-            <LevelPill label="All"  active={levelFilter === "all"}   count={allErrors.length} onClick={() => setLevel("all")} />
-            <LevelPill label="ERR"  active={levelFilter === "error"} count={totalErr}  color="text-red-500"  onClick={() => setLevel("error")} />
-            <LevelPill label="WARN" active={levelFilter === "warn"}  count={totalWarn} color="text-amber-500" onClick={() => setLevel("warn")} />
+    <div ref={containerRef}>
+      <Card>
+        {/* ── Header ── */}
+        <CardHeader className="pb-3 flex flex-row items-start justify-between gap-4">
+          <div>
+            <CardTitle className="text-sm font-medium">Log</CardTitle>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Last 30 days</p>
           </div>
-
-          {/* Search */}
-          <div className="relative flex-1 min-w-[140px]">
-            <svg
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-            >
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              ref={searchRef}
-              type="text"
-              value={search}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Filter by subsystem or message…"
-              className="w-full rounded border border-border bg-background pl-6 pr-6 py-0.5 text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            {search && (
+          <div className="flex items-center gap-2 text-[11px] shrink-0 pt-0.5">
+            {totalErr > 0 && (
+              <span className="font-medium tabular-nums" style={{ color: "var(--theme-accent)" }}>
+                {totalErr} error{totalErr !== 1 ? "s" : ""}
+              </span>
+            )}
+            {totalWarn > 0 && (
+              <span className="font-medium text-muted-foreground tabular-nums">
+                {totalWarn} warning{totalWarn !== 1 ? "s" : ""}
+              </span>
+            )}
+            {/* Quick hide-warnings shortcut */}
+            {levelFilter === "all" && totalWarn > 0 && (
               <button
                 type="button"
-                onClick={() => { setQuery(""); searchRef.current?.focus(); }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setLevel("error")}
+                className="text-[10px] text-muted-foreground/60 underline underline-offset-2 decoration-dotted hover:text-muted-foreground transition-colors"
               >
-                <X className="h-3 w-3" />
+                hide warnings
               </button>
             )}
+            {levelFilter === "error" && (
+              <button
+                type="button"
+                onClick={() => setLevel("all")}
+                className="text-[10px] text-muted-foreground/60 underline underline-offset-2 decoration-dotted hover:text-muted-foreground transition-colors"
+              >
+                show all
+              </button>
+            )}
+            {allErrors.length === 0 && (
+              <span className="text-green-600 dark:text-green-400">All clear</span>
+            )}
           </div>
+        </CardHeader>
 
-          {/* Sort toggle */}
-          <button
-            type="button"
-            onClick={toggleSort}
-            title={sortAsc ? "Oldest first — click to reverse" : "Newest first — click to reverse"}
-            className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-muted-foreground bg-muted hover:bg-muted/80 transition-colors whitespace-nowrap"
-          >
-            <ArrowUpDown className="h-3 w-3" />
-            {sortAsc ? "Oldest" : "Newest"}
-          </button>
-        </div>
-
-        {/* ── List ── */}
-        {total === 0 ? (
-          <p className="px-4 pb-4 text-xs text-muted-foreground">
-            {hasFilters ? "No entries match the current filters." : "No warnings or errors logged."}
-          </p>
-        ) : (
-          <div className="divide-y divide-border border-t border-border">
-            {slice.map((entry) => {
-              const key = `${entry.tsMs}|${entry.message.slice(0, 40)}`;
-              const isExpanded = expandedKey === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className="w-full text-left px-4 py-2.5 hover:bg-muted/40 transition-colors"
-                  onClick={() => setExpandedKey(isExpanded ? null : key)}
-                >
-                  <div className="flex items-start gap-2.5 min-w-0">
-                    {/* Level badge */}
-                    <span className={`mt-0.5 shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-                      entry.level === "error"
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
-                        : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                    }`}>
-                      {entry.level === "error" ? "ERR" : "WARN"}
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      {/* Time + subsystem row */}
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                          {fmtTime(entry.tsMs)}
-                        </span>
-                        {entry.subsystem && (
-                          <span className="text-[10px] font-mono text-muted-foreground/80 truncate">
-                            {entry.subsystem}
-                          </span>
-                        )}
-                      </div>
-                      {/* Message */}
-                      <p className={`text-xs text-foreground leading-relaxed ${isExpanded ? "whitespace-pre-wrap break-all" : "truncate"}`}>
-                        {entry.message}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Pagination ── */}
-        {total > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
-            <span className="text-[11px] text-muted-foreground tabular-nums">
-              {from}–{to} of {total}
-            </span>
+        <CardContent className="p-0">
+          {/* ── Controls bar ── */}
+          <div className="px-4 pb-3 flex flex-wrap items-center gap-2">
+            {/* Level filter pills */}
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                disabled={safeP === 0}
-                onClick={() => setPage(safeP - 1)}
-                className="flex items-center gap-0.5 rounded px-2 py-1 text-[11px] text-muted-foreground bg-muted hover:bg-muted/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="h-3 w-3" /> Prev
-              </button>
-              <span className="text-[11px] text-muted-foreground tabular-nums px-1">
-                {safeP + 1} / {pages}
-              </span>
-              <button
-                type="button"
-                disabled={safeP >= pages - 1}
-                onClick={() => setPage(safeP + 1)}
-                className="flex items-center gap-0.5 rounded px-2 py-1 text-[11px] text-muted-foreground bg-muted hover:bg-muted/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                Next <ChevronRight className="h-3 w-3" />
-              </button>
+              <LevelPill
+                label="All"
+                active={levelFilter === "all"}
+                count={allErrors.length}
+                onClick={() => setLevel("all")}
+              />
+              <LevelPill
+                label="Errors"
+                active={levelFilter === "error"}
+                accentActive
+                count={totalErr}
+                countStyle={{ color: "var(--theme-accent)" }}
+                onClick={() => setLevel("error")}
+              />
+              <LevelPill
+                label="Warnings"
+                active={levelFilter === "warn"}
+                count={totalWarn}
+                countStyle={{ color: "#d97706" }}
+                onClick={() => setLevel("warn")}
+              />
             </div>
+
+            {/* Search */}
+            <div className="relative flex-1 min-w-[140px]">
+              <svg
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Filter by subsystem or message…"
+                className="w-full rounded border border-border bg-background pl-6 pr-6 py-0.5 text-[11px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => { setQuery(""); searchRef.current?.focus(); }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+
+            {/* Sort toggle */}
+            <button
+              type="button"
+              onClick={toggleSort}
+              title={sortAsc ? "Oldest first — click to reverse" : "Newest first — click to reverse"}
+              className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-muted-foreground bg-muted hover:bg-muted/80 transition-colors whitespace-nowrap"
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              {sortAsc ? "Oldest" : "Newest"}
+            </button>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {/* ── List ── */}
+          {total === 0 ? (
+            <p className="px-4 pb-4 text-xs text-muted-foreground">
+              {hasFilters ? "No entries match the current filters." : "No warnings or errors logged."}
+            </p>
+          ) : (
+            <div className="divide-y divide-border border-t border-border">
+              {slice.map((entry) => {
+                const key = `${entry.tsMs}|${entry.message.slice(0, 40)}`;
+                const isExpanded = expandedKey === key;
+                const isErr = entry.level === "error";
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className="w-full text-left px-4 py-2.5 hover:bg-muted/40 transition-colors"
+                    onClick={() => setExpandedKey(isExpanded ? null : key)}
+                  >
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      {/* Level badge — errors use accent color, warnings use amber */}
+                      <span
+                        className={`mt-0.5 shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide${!isErr ? " bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : ""}`}
+                        style={isErr ? {
+                          backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
+                          color: "var(--theme-accent)",
+                        } : undefined}
+                      >
+                        {isErr ? "ERR" : "WARN"}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        {/* Time + subsystem row */}
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                            {fmtTime(entry.tsMs)}
+                          </span>
+                          {entry.subsystem && (
+                            <span className="text-[10px] font-mono text-muted-foreground/80 truncate">
+                              {entry.subsystem}
+                            </span>
+                          )}
+                        </div>
+                        {/* Message */}
+                        <p className={`text-xs leading-relaxed ${isErr ? "text-foreground" : "text-muted-foreground"} ${isExpanded ? "whitespace-pre-wrap break-all" : "truncate"}`}>
+                          {entry.message}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Pagination ── */}
+          {total > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {from}–{to} of {total}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={safeP === 0}
+                  onClick={() => setPage(safeP - 1)}
+                  className="flex items-center gap-0.5 rounded px-2 py-1 text-[11px] text-muted-foreground bg-muted hover:bg-muted/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-3 w-3" /> Prev
+                </button>
+                <span className="text-[11px] text-muted-foreground tabular-nums px-1">
+                  {safeP + 1} / {pages}
+                </span>
+                <button
+                  type="button"
+                  disabled={safeP >= pages - 1}
+                  onClick={() => setPage(safeP + 1)}
+                  className="flex items-center gap-0.5 rounded px-2 py-1 text-[11px] text-muted-foreground bg-muted hover:bg-muted/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -544,6 +626,8 @@ function ErrorLog({ data }: { data: ActivityData | null }) {
 
 export function ActivityCharts() {
   const [data, setData] = useState<ActivityData | null>(null);
+  const [cronJumpSeq, setCronJumpSeq] = useState(0);
+  const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/activity")
@@ -552,14 +636,20 @@ export function ActivityCharts() {
       .catch(() => {});
   }, []);
 
+  function handleCronFailClick() {
+    setCronJumpSeq(s => s + 1);
+    // Small delay lets React re-render before scrolling
+    setTimeout(() => logRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  }
+
   return (
     <div className="space-y-4">
       <ActivityHistogram data={data} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <HourlyChart data={data} />
-        <ChannelBreakdown data={data} />
+        <ChannelBreakdown data={data} onCronFailClick={handleCronFailClick} />
       </div>
-      <ErrorLog data={data} />
+      <ErrorLog data={data} cronJumpSeq={cronJumpSeq} containerRef={logRef} />
     </div>
   );
 }
