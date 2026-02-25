@@ -144,6 +144,15 @@ async function countDeliveryQueue(): Promise<number> {
   } catch { return 0; }
 }
 
+async function countSessions(): Promise<number> {
+  try {
+    const raw = await readFile(join(HOME, ".openclaw/agents/main/sessions/sessions.json"), "utf-8");
+    const all = JSON.parse(raw);
+    // Exclude :run: sub-sessions
+    return Object.keys(all).filter(k => !k.includes(":run:")).length;
+  } catch { return 0; }
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SidebarCounts | { error: string }>
@@ -151,11 +160,12 @@ export default async function handler(
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const [agents, memory, scheduled, models, workspaces, nodes, skills, channels, credentials, deliveryQueue] =
+    const [agents, memory, scheduled, sessions, models, workspaces, nodes, skills, channels, credentials, deliveryQueue] =
       await Promise.all([
         countAgents(),
         countMemory(),
         countCalendar(),
+        countSessions(),
         countModels(),
         countWorkspaces(),
         countNodes(),
@@ -166,7 +176,7 @@ export default async function handler(
       ]);
 
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-    res.status(200).json({ agents, memory, scheduled, models, workspaces, nodes, skills, channels, credentials, deliveryQueue });
+    res.status(200).json({ agents, memory, scheduled, sessions, models, workspaces, nodes, skills, channels, credentials, deliveryQueue });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

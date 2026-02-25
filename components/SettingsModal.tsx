@@ -4,7 +4,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSettings } from "@/lib/settings-context";
+import { useSettings, REFRESH_OPTIONS } from "@/lib/settings-context";
 import { THEME_COLORS } from "@/lib/theme-colors";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +60,30 @@ export function SettingsModal({ open, onOpenChange }: Props) {
           <p className="mt-2.5 text-xs text-muted-foreground h-3 transition-all">
             {THEME_COLORS.find(c => c.id === settings.themeColor)?.label ?? "Gray"}
           </p>
+
+          <Divider />
+
+          {/* ── Refresh ── */}
+          <SectionLabel>Refresh interval</SectionLabel>
+          <div className="flex gap-1.5">
+            {REFRESH_OPTIONS.map(opt => {
+              const active = settings.refreshInterval === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setSetting("refreshInterval", opt.value)}
+                  className={cn(
+                    "rounded px-3 py-1 text-xs font-medium transition-colors",
+                    active
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
 
           <Divider />
 

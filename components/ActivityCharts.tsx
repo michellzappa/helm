@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAutoRefresh } from "@/lib/settings-context";
 import { ChevronLeft, ChevronRight, ArrowUpDown, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ActivityData, DayBucket, ErrorEntry } from "@/pages/api/activity";
@@ -644,12 +645,12 @@ export function ActivityCharts() {
   const [cronJumpSeq, setCronJumpSeq] = useState(0);
   const logRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useAutoRefresh(() => {
     fetch("/api/activity")
       .then(r => r.json())
       .then(setData)
       .catch(() => {});
-  }, []);
+  });
 
   function handleCronFailClick() {
     setCronJumpSeq(s => s + 1);

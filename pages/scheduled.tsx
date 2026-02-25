@@ -1,9 +1,10 @@
 import Layout from "@/components/Layout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, Clock, Zap } from "lucide-react";
+import { Calendar, Clock, Zap, Play, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useAutoRefresh } from "@/lib/settings-context";
 import { useCounts } from "@/lib/counts-context";
 
 interface ScheduledTask {
@@ -25,8 +26,10 @@ export default function ScheduledPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  // Per-job run state: "idle" | "running" | "ok" | "error"
+  const [runState, setRunState] = useState<Record<string, "idle" | "running" | "ok" | "error">>({});
 
-  useEffect(() => {
+  useAutoRefresh(() => {
     fetch("/api/scheduled-tasks")
       .then((res) => res.json())
       .then((data) => {
@@ -43,7 +46,24 @@ export default function ScheduledPage() {
         setTasks([]);
         setLoading(false);
       });
-  }, []);
+  });
+
+  async function handleRunNow(jobId: string) {
+    setRunState(s => ({ ...s, [jobId]: "running" }));
+    try {
+      const res = await fetch("/api/cron-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId }),
+      });
+      const json = await res.json();
+      setRunState(s => ({ ...s, [jobId]: json.ok ? "ok" : "error" }));
+    } catch {
+      setRunState(s => ({ ...s, [jobId]: "error" }));
+    }
+    // Reset to idle after 3s
+    setTimeout(() => setRunState(s => ({ ...s, [jobId]: "idle" })), 3000);
+  }
 
   const getNextRun = (nextRunMs?: number) => {
     if (!nextRunMs) return "—";
@@ -195,12 +215,13 @@ export default function ScheduledPage() {
                       onSort={handleSort}
                     />
                   </TableHead>
+                  <TableHead className="w-16 text-right">Run</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No scheduled tasks
                     </TableCell>
                   </TableRow>
@@ -266,6 +287,25 @@ export default function ScheduledPage() {
                             ? "Running"
                             : "Stopped"}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {task.type === "cron" && (() => {
+                          const state = runState[task.id] ?? "idle";
+                          return (
+                            <button
+                              type="button"
+                              disabled={state === "running"}
+                              onClick={() => handleRunNow(task.id)}
+                              title="Run now"
+                              className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted transition-colors disabled:opacity-50"
+                            >
+                              {state === "running" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                              {state === "ok"      && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
+                              {state === "error"   && <XCircle className="h-3.5 w-3.5 text-red-500" />}
+                              {state === "idle"    && <Play className="h-3.5 w-3.5 text-muted-foreground" />}
+                            </button>
+                          );
+                        })()}
                       </TableCell>
                     </TableRow>
                   ))

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useCallback, useState } from "react";
+import { useAutoRefresh } from "@/lib/settings-context";
 import type { SidebarCounts } from "@/lib/types";
 
 interface CountsContextValue {
@@ -18,7 +19,7 @@ export function CountsProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useAutoRefresh(refresh);
 
   return (
     <CountsContext.Provider value={{ counts, refresh }}>

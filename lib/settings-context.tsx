@@ -1,13 +1,22 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+
+export const REFRESH_OPTIONS = [
+  { label: "10 s",  value: 10_000 },
+  { label: "30 s",  value: 30_000 },
+  { label: "1 min", value: 60_000 },
+  { label: "5 min", value: 300_000 },
+] as const;
 
 export interface AppSettings {
   showSidebarCounts: boolean;
   themeColor: string;
+  refreshInterval: number; // ms
 }
 
 const DEFAULTS: AppSettings = {
   showSidebarCounts: true,
   themeColor: "gray",
+  refreshInterval: 30_000,
 };
 
 const STORAGE_KEY = "mc_settings";
@@ -61,4 +70,20 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
 export function useSettings() {
   return useContext(SettingsContext);
+}
+
+export function useRefreshInterval(): number {
+  return useContext(SettingsContext).settings.refreshInterval;
+}
+
+/** Calls `callback` immediately then on every refreshInterval tick. */
+export function useAutoRefresh(callback: () => void) {
+  const interval = useRefreshInterval();
+  const cbRef = useRef(callback);
+  useEffect(() => { cbRef.current = callback; });
+  useEffect(() => {
+    cbRef.current();
+    const id = setInterval(() => cbRef.current(), interval);
+    return () => clearInterval(id);
+  }, [interval]);
 }

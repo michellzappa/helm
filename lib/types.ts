@@ -2,6 +2,7 @@ export interface SidebarCounts {
   agents: number;
   memory: number;
   scheduled: number;
+  sessions: number;
   models: number;
   workspaces: number;
   nodes: number;
