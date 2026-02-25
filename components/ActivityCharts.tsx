@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ActivityData, DayBucket } from "@/pages/api/activity";
+import type { ActivityData, DayBucket, ErrorEntry } from "@/pages/api/activity";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -275,6 +275,110 @@ function ChannelBreakdown({ data }: { data: ActivityData | null }) {
   );
 }
 
+// ── Error / Warning Log ────────────────────────────────────────────────────
+
+function fmtTime(tsMs: number) {
+  return new Intl.DateTimeFormat("en", {
+    timeZone: "Europe/Amsterdam",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(tsMs));
+}
+
+function ErrorLog({ data }: { data: ActivityData | null }) {
+  const [expanded, setExpanded] = useState<number | null>(null);
+
+  if (!data) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Errors & Warnings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <CardSkeleton height="h-4" />
+          <CardSkeleton height="h-4" />
+          <CardSkeleton height="h-4" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { errors } = data;
+  const warnCount = errors.filter(e => e.level === "warn").length;
+  const errCount  = errors.filter(e => e.level === "error").length;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle className="text-sm font-medium">Errors &amp; Warnings</CardTitle>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Last 30 days</p>
+        </div>
+        <div className="flex items-center gap-2 text-[11px] shrink-0 pt-0.5">
+          {errCount > 0 && (
+            <span className="font-medium text-red-500 tabular-nums">{errCount} error{errCount !== 1 ? "s" : ""}</span>
+          )}
+          {warnCount > 0 && (
+            <span className="font-medium text-amber-500 dark:text-amber-400 tabular-nums">{warnCount} warning{warnCount !== 1 ? "s" : ""}</span>
+          )}
+          {errors.length === 0 && (
+            <span className="text-green-600 dark:text-green-400">All clear</span>
+          )}
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0">
+        {errors.length === 0 ? (
+          <p className="px-6 pb-4 text-xs text-muted-foreground">No warnings or errors logged.</p>
+        ) : (
+          <div className="divide-y divide-border max-h-72 overflow-y-auto">
+            {errors.map((entry, i) => (
+              <button
+                key={i}
+                type="button"
+                className="w-full text-left px-4 py-2 hover:bg-muted/50 transition-colors"
+                onClick={() => setExpanded(expanded === i ? null : i)}
+              >
+                <div className="flex items-start gap-2 min-w-0">
+                  {/* Level badge */}
+                  <span className={`mt-0.5 shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                    entry.level === "error"
+                      ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                  }`}>
+                    {entry.level === "error" ? "ERR" : "WARN"}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    {/* Time + subsystem */}
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                        {fmtTime(entry.tsMs)}
+                      </span>
+                      {entry.subsystem && (
+                        <span className="text-[10px] font-medium text-muted-foreground truncate">
+                          {entry.subsystem}
+                        </span>
+                      )}
+                    </div>
+                    {/* Message */}
+                    <p className={`text-xs text-foreground ${expanded === i ? "whitespace-pre-wrap break-all" : "truncate"}`}>
+                      {entry.message}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Main export ─────────────────────────────────────────────────────────────
 
 export function ActivityCharts() {
@@ -294,6 +398,7 @@ export function ActivityCharts() {
         <HourlyChart data={data} />
         <ChannelBreakdown data={data} />
       </div>
+      <ErrorLog data={data} />
     </div>
   );
 }

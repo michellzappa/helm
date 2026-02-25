@@ -13,6 +13,13 @@ export interface DayBucket {
   system: number;
 }
 
+export interface ErrorEntry {
+  tsMs: number;       // Unix ms
+  level: "warn" | "error";
+  subsystem: string;
+  message: string;
+}
+
 export interface ActivityData {
   daily: DayBucket[];
   hourly: number[];
@@ -21,6 +28,7 @@ export interface ActivityData {
   totalEvents: number;
   logDays: number;
   logSource: string;   // which log path was used (for debugging)
+  errors: ErrorEntry[];
 }
 
 const EMPTY: ActivityData = {
@@ -31,6 +39,7 @@ const EMPTY: ActivityData = {
   totalEvents: 0,
   logDays: 0,
   logSource: "none",
+  errors: [],
 };
 
 // ── Log path discovery ─────────────────────────────────────────────────────
@@ -86,6 +95,13 @@ interface LogEvent {
   ts: Date;
   subsystem: string;   // e.g. "gateway/channels/telegram"
   message: string;     // primary message text
+  level?: "warn" | "error";
+}
+
+// Extract errorMessage= value from plain-text log lines
+function extractErrorMessage(text: string): string {
+  const m = text.match(/errorMessage=(.+?)(?:\s+conn=|\s+channel=|\s+error=|$)/);
+  return m ? m[1].trim() : text;
 }
 
 function extractEvent(line: string): LogEvent | null {
@@ -97,10 +113,44 @@ function extractEvent(line: string): LogEvent | null {
       const d = JSON.parse(line);
       const ts = new Date(d.time);
       if (isNaN(ts.getTime())) return null;
+
+      // Determine level from _meta first (needed to decide field mapping)
+      let level: LogEvent["level"];
+      const lvlName: string = d._meta?.logLevelName ?? "";
+      if (lvlName === "ERROR" || (d._meta?.logLevelId ?? 0) >= 5) level = "error";
+      else if (lvlName === "WARN" || (d._meta?.logLevelId ?? 0) === 4) level = "warn";
+
+      // d["0"] is either:
+      //   a) JSON string like '{"subsystem":"gateway/ws"}' (INFO/WARN entries)
+      //   b) A plain error message string (ERROR entries, or entries without subsystem wrapper)
       let subsystem = "";
-      try { subsystem = JSON.parse(d["0"])?.subsystem ?? ""; } catch { subsystem = String(d["0"] ?? ""); }
-      const message = typeof d["1"] === "string" ? d["1"] : JSON.stringify(d["1"] ?? "");
-      return { ts, subsystem, message };
+      let message = "";
+
+      let field0Parsed: Record<string, unknown> | null = null;
+      try { field0Parsed = JSON.parse(d["0"]); } catch {}
+
+      if (field0Parsed?.subsystem) {
+        // Case (a): d["0"] is a subsystem wrapper, d["1"]/d["2"] has the message
+        subsystem = String(field0Parsed.subsystem);
+        if (typeof d["1"] === "string" && d["1"]) {
+          message = d["1"];
+        } else if (typeof d["1"] === "object" && d["1"] !== null) {
+          const obj = d["1"] as Record<string, unknown>;
+          if (obj.errorMessage) message = String(obj.errorMessage);
+          else if (obj.cause) message = String(obj.cause);
+          else message = JSON.stringify(obj);
+        }
+        // d["2"] often has a cleaner summary string (e.g. "closed before connect conn=...")
+        if (typeof d["2"] === "string" && d["2"].length > 0 && d["2"].length < 300) {
+          message = d["2"];
+        }
+      } else {
+        // Case (b): d["0"] is the actual message; subsystem not available in this entry
+        message = typeof d["0"] === "string" ? d["0"] : JSON.stringify(d["0"] ?? "");
+        subsystem = "";
+      }
+
+      return { ts, subsystem, message, level };
     } catch { return null; }
   }
 
@@ -113,7 +163,11 @@ function extractEvent(line: string): LogEvent | null {
   const tagMatch = rest.match(/^\[([^\]]+)\]\s*(.*)/);
   const subsystem = tagMatch ? tagMatch[1] : "";
   const message = tagMatch ? tagMatch[2] : rest;
-  return { ts, subsystem, message };
+  // Detect errors in plain-text: lines with ✗ or errorCode=
+  let level: LogEvent["level"];
+  if (message.includes("✗") || message.includes("errorCode=")) level = "error";
+  else if (message.toLowerCase().includes("warn")) level = "warn";
+  return { ts, subsystem, message: level === "error" ? extractErrorMessage(message) : message, level };
 }
 
 // ── Date/hour helpers ──────────────────────────────────────────────────────
@@ -145,6 +199,23 @@ async function cronStats(): Promise<{ success: number; fail: number; total: numb
   } catch { return { success: 0, fail: 0, total: 0 }; }
 }
 
+const MAX_ERRORS = 50;
+const MAX_WARNS  = 50;
+
+// High-volume, low-signal WARN patterns to suppress (WebSocket connection lifecycle noise)
+const WARN_NOISE_PREFIXES = [
+  "unauthorized",          // repeated auth failures from misconfigured nodes
+  "closed before connect", // WS handshake abandon
+  "closed ",               // generic WS close frames
+  "proxy ",                // reverse-proxy forwarding noise
+];
+
+function isNoisyWarn(entry: ErrorEntry): boolean {
+  if (entry.level !== "warn") return false;
+  const msg = entry.message.toLowerCase();
+  return WARN_NOISE_PREFIXES.some(p => msg.startsWith(p));
+}
+
 // ── Main parser ────────────────────────────────────────────────────────────
 function parseLogSources(sources: LogSource[]): Omit<ActivityData, "cron" | "logSource"> {
   // Build set of dates owned by specific-date sources (to avoid double-counting)
@@ -164,6 +235,8 @@ function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<Acti
   const hourly = new Array(24).fill(0);
   const channelCounts: Record<string, number> = {};
   let totalEvents = 0;
+  // Use a Map keyed by "tsMs|message" to deduplicate across sources
+  const errorMap = new Map<string, ErrorEntry>();
 
   for (const source of sources) {
     let content: string;
@@ -181,6 +254,21 @@ function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<Acti
 
       const sub = ev.subsystem.toLowerCase();
       const msg = ev.message.toLowerCase();
+
+      // ── Collect warnings/errors
+      if (ev.level) {
+        const key = `${ev.ts.getTime()}|${ev.message.slice(0, 80)}`;
+        if (!errorMap.has(key)) {
+          // Strip leading "gateway/" prefix for brevity
+          const cleanSub = ev.subsystem.replace(/^gateway\//, "");
+          errorMap.set(key, {
+            tsMs: ev.ts.getTime(),
+            level: ev.level,
+            subsystem: cleanSub,
+            message: ev.message,
+          });
+        }
+      }
 
       // ── Telegram user exchange
       if (sub.includes("telegram") && msg.includes("sendmessage ok")) {
@@ -231,7 +319,16 @@ function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<Acti
     }))
     .sort((a, b) => b.count - a.count);
 
-  return { daily, hourly, channels, totalEvents, logDays: activeDates.size };
+  // Separate errors and warns; filter noise; cap each independently; errors first
+  const allEntries = Array.from(errorMap.values())
+    .filter(e => !isNoisyWarn(e))
+    .sort((a, b) => b.tsMs - a.tsMs);
+
+  const errorEntries = allEntries.filter(e => e.level === "error").slice(0, MAX_ERRORS);
+  const warnEntries  = allEntries.filter(e => e.level === "warn").slice(0, MAX_WARNS);
+  const errors = [...errorEntries, ...warnEntries];
+
+  return { daily, hourly, channels, totalEvents, logDays: activeDates.size, errors };
 }
 
 // ── Cache + handler ────────────────────────────────────────────────────────
