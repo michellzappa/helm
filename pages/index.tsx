@@ -28,6 +28,7 @@ import type { ModelUsage } from "./api/model-usage";
 import type { PairedNode } from "./api/nodes";
 import type { SessionsData } from "./api/sessions";
 import type { WorkspaceSize } from "./api/workspace-sizes";
+import { ActivityCharts } from "@/components/ActivityCharts";
 
 interface ActivitiesResponse {
   total: number;
@@ -1342,6 +1343,7 @@ const WIDGET_DEFINITIONS = [
 export default function Dashboard() {
   const { settings } = useSettings();
   const [editing, setEditing] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   
   // Load saved order/visibility from localStorage or use defaults
   const [widgetState, setWidgetState] = useState(() => {
@@ -1444,6 +1446,22 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         )}
+
+        {/* Error Log — collapsible full-width */}
+        <div className="pt-4">
+          <button
+            onClick={() => setShowLog(v => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showLog ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showLog ? "Hide Error Log" : "Show Error Log"}
+          </button>
+          {showLog && (
+            <div className="mt-4">
+              <ActivityCharts />
+            </div>
+          )}
+        </div>
 
         {/* Widget Editor Overlay */}
         {editing && (
