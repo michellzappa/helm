@@ -302,12 +302,8 @@ function TailscaleCard() {
                 <span
                   className="h-1.5 w-1.5 rounded-full shrink-0"
                   style={{
-                    backgroundColor: peer.active
-                      ? "#22c55e"   // green  — active (recent traffic)
-                      : peer.online
-                        ? "#f59e0b" // amber  — online, idle
-                        : "#6b7280", // gray  — offline
-                    opacity: peer.online ? 1 : 0.4,
+                    backgroundColor: "var(--theme-accent)",
+                    opacity: peer.active ? 1 : peer.online ? 0.6 : 0.3,
                   }}
                 />
                 <span className="font-medium truncate flex-1">{peer.name}</span>
@@ -481,13 +477,6 @@ function MiniSparkline({ values }: { values: number[] }) {
   );
 }
 
-function healthColor(pct: number) {
-  if (pct >= 80) return "#22c55e";
-  if (pct >= 60) return "#84cc16";
-  if (pct >= 40) return "#f59e0b";
-  return "#ef4444";
-}
-
 function QuickAgentsCard() {
   const [agents, setAgents] = useState<OcAgent[]>([]);
   const [summary, setSummary] = useState<AgentsSummary | null>(null);
@@ -528,7 +517,7 @@ function QuickAgentsCard() {
                 "h-3 w-3 rounded-full border",
                 agent.id === defaultId ? "ring-2 ring-offset-1 ring-[var(--theme-accent)]" : "opacity-80"
               )}
-              style={{ backgroundColor: agent.sessionCount > 0 ? "#22c55e" : "#6b7280", borderColor: "transparent" }}
+              style={{ backgroundColor: "var(--theme-accent)", opacity: agent.sessionCount > 0 ? 1 : 0.4, borderColor: "transparent" }}
             />
           ))}
           {agents.length === 0 && <div className="h-3 w-20 rounded bg-muted animate-pulse" />}
@@ -565,13 +554,13 @@ function ChannelsHealthCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="h-3 rounded-md overflow-hidden flex bg-muted">
+        <div className="h-2 rounded-md overflow-hidden flex bg-muted">
           {(data?.channels ?? []).map((channel) => (
             <div
               key={channel.id}
               title={`${channel.name}: ${channel.healthPct}%`}
               className="h-full"
-              style={{ width: `${100 / Math.max((data?.channels.length ?? 1), 1)}%`, backgroundColor: healthColor(channel.healthPct) }}
+              style={{ width: `${100 / Math.max((data?.channels.length ?? 1), 1)}%`, backgroundColor: "var(--theme-accent)", opacity: Math.max(0.4, channel.healthPct / 100) }}
             />
           ))}
           {!data && <div className="h-full w-full animate-pulse bg-muted" />}
@@ -589,6 +578,7 @@ function ChannelsHealthCard() {
 
 function TodaySpendCard() {
   const [data, setData] = useState<CostHistoryData | null>(null);
+  const { settings } = useSettings();
 
   useAutoRefresh(() => {
     fetch("/api/cost-history")
@@ -604,6 +594,7 @@ function TodaySpendCard() {
   const today = data?.summary.today ?? 0;
   const yesterday = daily.length > 1 ? daily[daily.length - 2].cost : 0;
   const delta = today - yesterday;
+  const symbol = settings.currency === "EUR" ? "€" : "$";
 
   return (
     <Card>
@@ -612,10 +603,10 @@ function TodaySpendCard() {
       </CardHeader>
       <CardContent className="space-y-1">
         <div className="flex items-end justify-between">
-          <p className="text-3xl leading-none font-bold tabular-nums">${today.toFixed(2)}</p>
+          <p className="text-3xl leading-none font-bold tabular-nums">{symbol}{today.toFixed(2)}</p>
           <span className={cn("text-xs inline-flex items-center gap-0.5 tabular-nums", delta >= 0 ? "text-red-500" : "text-green-600")}>
             {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-            {Math.abs(delta).toFixed(2)}
+            {symbol}{Math.abs(delta).toFixed(2)}
           </span>
         </div>
         <MiniSparkline values={points} />
@@ -656,10 +647,12 @@ function CredentialsStatusCard() {
           <div
             className="h-14 w-14 rounded-full"
             style={{
-              background: `conic-gradient(#22c55e 0 ${validPct}%, #ef4444 ${validPct}% ${validPct + expiredPct}%, #eab308 ${validPct + expiredPct}% 100%)`,
+              background: `conic-gradient(var(--theme-accent) 0 ${validPct}%, var(--theme-accent) ${validPct}% ${validPct + expiredPct}%, var(--theme-accent) ${validPct + expiredPct}% 100%)`,
             }}
           >
-            <div className="h-full w-full scale-[0.62] rounded-full bg-card" />
+            <div className="h-full w-full scale-[0.62] rounded-full bg-card flex items-center justify-center">
+              <span className="text-xs font-bold tabular-nums">{validPct}%</span>
+            </div>
           </div>
           <div className="text-xs space-y-0.5">
             <p className="tabular-nums"><span className="text-foreground font-medium">{valid}</span> valid</p>
@@ -695,16 +688,16 @@ function MemoryActivityCard() {
         <CardTitle className="text-sm font-medium">Memory Activity</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="h-10 flex items-end gap-1">
+        <div className="h-2 flex items-end gap-0.5 rounded overflow-hidden bg-muted">
           {(data?.timeline ?? []).map((point) => (
             <div
               key={point.day}
               title={`${point.day}: ${point.edits}`}
-              className="flex-1 rounded-sm"
-              style={{ height: `${Math.max(10, (point.edits / maxEdits) * 100)}%`, backgroundColor: "var(--theme-accent)", opacity: 0.75 }}
+              className="flex-1 h-full"
+              style={{ backgroundColor: "var(--theme-accent)", opacity: Math.max(0.3, point.edits / maxEdits) }}
             />
           ))}
-          {!data && <div className="h-full w-full rounded bg-muted animate-pulse" />}
+          {!data && <div className="h-full w-full animate-pulse bg-muted" />}
         </div>
         <div className="flex flex-wrap gap-1">
           {(data?.recentTopics ?? []).slice(0, 5).map((topic) => (
@@ -748,8 +741,8 @@ function MessageQueueCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="h-3 rounded bg-muted overflow-hidden">
-          <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: queued > 15 ? "#f59e0b" : "var(--theme-accent)" }} />
+        <div className="h-2 rounded bg-muted overflow-hidden">
+          <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: "var(--theme-accent)", opacity: queued > 15 ? 0.6 : 1 }} />
         </div>
         <p className="text-xs text-muted-foreground tabular-nums">{queued} queued</p>
         <Link href="/messages" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
@@ -787,7 +780,7 @@ function ActiveModelsCard() {
         {top.map((model) => (
           <div key={model.id} className="space-y-0.5">
             <div className="text-[10px] text-muted-foreground truncate">{model.id}</div>
-            <div className="h-1.5 rounded bg-muted overflow-hidden">
+            <div className="h-2 rounded bg-muted overflow-hidden">
               <div className="h-full" style={{ width: `${(model.count / max) * 100}%`, backgroundColor: "var(--theme-accent)" }} />
             </div>
           </div>
@@ -833,7 +826,7 @@ function ConnectedNodesCard() {
             <Circle
               key={i}
               className="h-2.5 w-2.5 fill-current"
-              style={{ color: status === "active" ? "#22c55e" : status === "idle" ? "#eab308" : "#6b7280" }}
+              style={{ color: "var(--theme-accent)", opacity: status === "active" ? 1 : status === "idle" ? 0.6 : 0.3 }}
             />
           ))}
           {statuses.length === 0 && <div className="col-span-8 h-4 rounded bg-muted animate-pulse" />}
@@ -878,8 +871,8 @@ function ActiveSessionsCard() {
       <CardContent className="space-y-2">
         <p className="text-2xl font-bold tabular-nums">{sessions.length}</p>
         <div className="h-2 rounded bg-muted overflow-hidden flex">
-          <div className="h-full bg-emerald-500" style={{ width: `${(active / total) * 100}%` }} />
-          <div className="h-full bg-zinc-500" style={{ width: `${(idle / total) * 100}%` }} />
+          <div className="h-full" style={{ width: `${(active / total) * 100}%`, backgroundColor: "var(--theme-accent)" }} />
+          <div className="h-full" style={{ width: `${(idle / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.4 }} />
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">{active} active · {idle} idle</p>
         <MiniSparkline values={points} />
@@ -916,10 +909,10 @@ function SkillsQuickAccessCard() {
         <CardTitle className="text-sm font-medium">Skills Quick Access</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="h-3 rounded bg-muted overflow-hidden flex">
-          <div className="h-full bg-sky-500" style={{ width: `${(counts.workspace / total) * 100}%` }} />
-          <div className="h-full bg-amber-500" style={{ width: `${(counts.extension / total) * 100}%` }} />
-          <div className="h-full bg-zinc-500" style={{ width: `${(counts.global / total) * 100}%` }} />
+        <div className="h-2 rounded bg-muted overflow-hidden flex">
+          <div className="h-full" style={{ width: `${(counts.workspace / total) * 100}%`, backgroundColor: "var(--theme-accent)" }} />
+          <div className="h-full" style={{ width: `${(counts.extension / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.7 }} />
+          <div className="h-full" style={{ width: `${(counts.global / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.4 }} />
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">
           W {counts.workspace} · E {counts.extension} · G {counts.global}
