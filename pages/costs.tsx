@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -191,7 +192,14 @@ export default function CostsPage() {
                     formatter={(value) => [fmtCost(Number(value ?? 0), currencyInfo.symbol), "Cost"]}
                     labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                   />
-                  <Bar dataKey="cost" fill={accent} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
+                    {dailyCosts.map((entry, index) => {
+                      const opacity = Math.max(0.35, 1 - (index * 0.05)); // Graduated opacity like model bars
+                      return (
+                        <Cell key={`cell-${index}`} fill={accent} fillOpacity={opacity} />
+                      );
+                    })}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
