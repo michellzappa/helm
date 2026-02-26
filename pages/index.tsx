@@ -9,7 +9,9 @@ import {
   Droplets, Wind, Network, ArrowUpRight, ArrowDownRight, AlertTriangle, Circle,
 } from "lucide-react";
 import { useAutoRefresh, useSettings } from "@/lib/settings-context";
+import { useCachedRefresh, useGlobalRefreshIndicator } from "@/lib/cache-refresh";
 import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import type { SystemMetrics } from "./api/system";
 import type { WeatherData } from "./api/weather";
 import type { TailscaleData } from "./api/tailscale";
@@ -389,24 +391,17 @@ function fmtRelativeNextRun(nextRunMs?: number) {
 }
 
 function UpcomingCronsCard() {
-  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
-  const [error, setError] = useState(false);
-
-  useAutoRefresh(() => {
-    fetch("/api/scheduled-tasks")
-      .then(r => r.json())
-      .then(d => {
-        if (Array.isArray(d)) {
-          setTasks(d);
-          setError(false);
-          return;
-        }
-        setError(true);
-      })
-      .catch(() => setError(true));
+  const { data: tasks = [], isStale } = useCachedRefresh<ScheduledTask[]>({
+    cacheKey: "scheduled-tasks",
+    fetcher: async () => {
+      const r = await fetch("/api/scheduled-tasks");
+      const d = await r.json();
+      if (!Array.isArray(d)) throw new Error("Invalid response");
+      return d;
+    },
   });
 
-  const upcoming = tasks
+  const upcoming = (tasks || [])
     .filter(task => task.type === "cron" && task.enabled && !!task.nextRunAtMs && task.nextRunAtMs > Date.now())
     .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0));
   
@@ -414,27 +409,29 @@ function UpcomingCronsCard() {
   const visible = upcoming.slice(0, 4);
 
   return (
-    <Card>
+    <Card className={isStale ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/crons" className="hover:underline">
-            Upcoming Crons
-          </Link>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">
+            <Link href="/crons" className="hover:underline">
+              Upcoming Crons
+            </Link>
+          </CardTitle>
+          {isStale && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        </div>
       </CardHeader>
-      <CardContent>
-        {error && <p className="text-sm text-muted-foreground">Unavailable</p>}
-        {!error && tasks.length === 0 && (
+      <CardContent className="space-y-2">
+        {(!tasks || tasks.length === 0) && (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-4 bg-muted rounded animate-pulse" style={{ width: `${80 - i * 10}%` }} />
             ))}
           </div>
         )}
-        {!error && tasks.length > 0 && upcoming.length === 0 && (
+        {tasks && tasks.length > 0 && upcoming.length === 0 && (
           <p className="text-sm text-muted-foreground">No upcoming cron runs.</p>
         )}
-        {!error && upcoming.length > 0 && (
+        {upcoming.length > 0 && (
           <div className="space-y-2">
             {visible.map(task => (
               <div key={task.id} className="text-xs sm:text-sm space-y-0.5">
@@ -487,25 +484,27 @@ function MiniSparkline({ values }: { values: number[] }) {
 }
 
 function QuickAgentsCard() {
-  const [agents, setAgents] = useState<OcAgent[]>([]);
-  const [summary, setSummary] = useState<AgentsSummary | null>(null);
-
-  useAutoRefresh(() => {
-    Promise.all([
-      fetch("/api/oc-agents").then((r) => r.json() as Promise<OcAgent[] | { error: string }>),
-      fetch("/api/agents-summary").then((r) => r.json() as Promise<AgentsSummary | { error: string }>),
-    ])
-      .then(([a, s]) => {
-        if (Array.isArray(a)) setAgents(a);
-        if (!("error" in s)) setSummary(s);
-      })
-      .catch(() => {});
+  const { data: agents, isStale } = useCachedRefresh<OcAgent[]>({
+    cacheKey: "agents-list",
+    fetcher: async () => {
+      const r = await fetch("/api/oc-agents");
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
+  });
+  const { data: summary } = useCachedRefresh<AgentsSummary>({
+    cacheKey: "agents-summary",
+    fetcher: async () => {
+      const r = await fetch("/api/agents-summary");
+      const d = await r.json();
+      return "error" in d ? null : d;
+    },
   });
 
   const defaultId = summary?.defaultAgent ?? "main";
 
   return (
-    <Card>
+    <Card className={isStale ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">
@@ -513,16 +512,19 @@ function QuickAgentsCard() {
               Quick Agents
             </Link>
           </CardTitle>
-          {summary && summary.recentErrors > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 tabular-nums">
-              {summary.recentErrors} err
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {isStale && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            {summary && summary.recentErrors > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 tabular-nums">
+                {summary.recentErrors} err
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex flex-wrap gap-1.5">
-          {agents.map((agent) => (
+          {(agents || []).map((agent) => (
             <span
               key={agent.id}
               title={`${agent.name}${agent.id === defaultId ? " (default)" : ""}`}
@@ -533,10 +535,10 @@ function QuickAgentsCard() {
               style={{ backgroundColor: "var(--theme-accent)", opacity: agent.sessionCount > 0 ? 1 : 0.4, borderColor: "transparent" }}
             />
           ))}
-          {agents.length === 0 && <div className="h-3 w-20 rounded bg-muted animate-pulse" />}
+          {(!agents || agents.length === 0) && <div className="h-3 w-20 rounded bg-muted animate-pulse" />}
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">
-          {agents.length} agents · default {defaultId}
+          {(agents || []).length} agents · default {defaultId}
         </p>
       </CardContent>
     </Card>
@@ -588,16 +590,15 @@ function ChannelsHealthCard() {
 }
 
 function TodaySpendCard() {
-  const [data, setData] = useState<CostHistoryData | null>(null);
   const { settings } = useSettings();
-
-  useAutoRefresh(() => {
-    fetch("/api/cost-history")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.error) setData(d);
-      })
-      .catch(() => {});
+  const { data, isStale } = useCachedRefresh<CostHistoryData>({
+    cacheKey: "cost-history",
+    fetcher: async () => {
+      const r = await fetch("/api/cost-history");
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      return d;
+    },
   });
 
   const daily = data?.daily ?? [];
@@ -608,13 +609,16 @@ function TodaySpendCard() {
   const symbol = settings.currency === "EUR" ? "€" : "$";
 
   return (
-    <Card>
+    <Card className={isStale ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/costs" className="hover:underline">
-            Today Spend
-          </Link>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">
+            <Link href="/costs" className="hover:underline">
+              Today Spend
+            </Link>
+          </CardTitle>
+          {isStale && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        </div>
       </CardHeader>
       <CardContent className="space-y-1">
         <div className="flex items-end justify-between">
@@ -992,6 +996,19 @@ function WorkspacesOverviewCard() {
   );
 }
 
+// ── Global Refresh Indicator ──────────────────────────────────────────────
+
+function RefreshIndicator() {
+  const activeCount = useGlobalRefreshIndicator();
+  if (activeCount === 0) return null;
+  return (
+    <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground animate-pulse">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      Live data incoming…
+    </div>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -1023,7 +1040,10 @@ export default function Dashboard() {
             <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
               <PageInfo page="dashboard" />
             </div>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground">Welcome to Helm</p>
+            <RefreshIndicator />
+          </div>
         </div>
 
         {/* Dense masonry dashboard cards */}
