@@ -233,7 +233,7 @@ function SystemCard() {
               </div>
               <div className="flex justify-between text-[11px]">
                 <span className="text-muted-foreground">Host</span>
-                <span className="truncate ml-4 text-right">{metrics.hostname}</span>
+                <span className="truncate ml-4 text-right" title={metrics.hostname}>{metrics.hostname}</span>
               </div>
             </div>
           </>
@@ -285,7 +285,7 @@ function TailscaleCard() {
 
         {ts && (
           <div className="space-y-1.5">
-            {ts.peers.map(peer => (
+            {ts.peers.slice(0, 4).map(peer => (
               <div key={peer.ip} className="flex items-center gap-2 text-[11px]">
                 {/* Status dot */}
                 <span
@@ -303,6 +303,11 @@ function TailscaleCard() {
                 <span className="font-mono text-muted-foreground shrink-0">{peer.ip}</span>
               </div>
             ))}
+            {ts.peers.length > 4 && (
+              <p className="text-[10px] text-muted-foreground">
+                +{ts.peers.length - 4} more nodes
+              </p>
+            )}
             <p className="text-[10px] text-muted-foreground pt-1 border-t border-border">
               {ts.online}/{ts.peers.length} online
             </p>
@@ -391,8 +396,10 @@ function UpcomingCronsCard() {
 
   const upcoming = tasks
     .filter(task => task.type === "cron" && task.enabled && !!task.nextRunAtMs && task.nextRunAtMs > Date.now())
-    .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0))
-    .slice(0, 5);
+    .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0));
+  
+  const showAll = upcoming.length > 4;
+  const visible = upcoming.slice(0, 4);
 
   return (
     <Card>
@@ -413,7 +420,7 @@ function UpcomingCronsCard() {
         )}
         {!error && upcoming.length > 0 && (
           <div className="space-y-2">
-            {upcoming.map(task => (
+            {visible.map(task => (
               <div key={task.id} className="text-xs sm:text-sm space-y-0.5">
                 <p className="font-medium truncate" title={task.name}>{task.name}</p>
                 <p className="text-muted-foreground truncate">
@@ -423,6 +430,11 @@ function UpcomingCronsCard() {
                 </p>
               </div>
             ))}
+            {showAll && (
+              <Link href="/crons" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+                View all {upcoming.length} crons →
+              </Link>
+            )}
           </div>
         )}
       </CardContent>
@@ -453,11 +465,9 @@ export default function Dashboard() {
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
         </div>
 
-        {/* Masonry-style dashboard cards */}
+        {/* Dense masonry dashboard cards */}
         {cards.length > 0 ? (
-          <div
-            className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4"
-          >
+          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
             {cards.map(card => (
               <div key={card.key} className="break-inside-avoid mb-4">{card.node}</div>
             ))}
