@@ -8,8 +8,8 @@ import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
   Droplets, Wind, Network, ArrowUpRight, ArrowDownRight, AlertTriangle, Circle,
 } from "lucide-react";
-import { useAutoRefresh, useSettings } from "@/lib/settings-context";
-import { useCachedRefresh, useGlobalRefreshIndicator } from "@/lib/cache-refresh";
+import { useSettings } from "@/lib/settings-context";
+import { useCachedRefresh } from "@/lib/cache-refresh";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import type { SystemMetrics } from "./api/system";
@@ -86,17 +86,19 @@ function toDisplayTemp(celsius: number, unit: "C" | "F"): number {
 // ── Weather card ──────────────────────────────────────────────────────────
 
 function WeatherCard() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [error, setError]     = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { settings } = useSettings();
   const unit = settings.temperatureUnit;
-
-  useAutoRefresh(() => {
-    fetch("/api/weather")
-      .then(r => r.json())
-      .then(d => { if (d.error) setError(true); else { setWeather(d); setError(false); } })
-      .catch(() => setError(true));
+  const { data, error } = useCachedRefresh<WeatherData>({
+    cacheKey: "weather",
+    fetcher: async () => {
+      const r = await fetch("/api/weather");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const weather = mounted ? data : null;
 
   const CondIcon = weather ? wxIcon(weather.code) : Cloud;
 
@@ -118,7 +120,7 @@ function WeatherCard() {
 
       <CardContent>
         {/* Error state */}
-        {error && (
+        {!weather && error && (
           <p className="text-sm text-muted-foreground">Unavailable</p>
         )}
 
@@ -205,14 +207,17 @@ function MetricBar({ label, pct, value }: { label: string; pct: number; value: s
 }
 
 function SystemCard() {
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
-
-  useAutoRefresh(() => {
-    fetch("/api/system")
-      .then(r => r.json())
-      .then(d => { if (!d.error) setMetrics(d); })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<SystemMetrics>({
+    cacheKey: "system",
+    fetcher: async () => {
+      const r = await fetch("/api/system");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const metrics = mounted ? data : null;
 
   return (
     <Card>
@@ -259,15 +264,17 @@ function SystemCard() {
 // ── Tailscale card ────────────────────────────────────────────────────────
 
 function TailscaleCard() {
-  const [ts, setTs]     = useState<TailscaleData | null>(null);
-  const [error, setErr] = useState(false);
-
-  useAutoRefresh(() => {
-    fetch("/api/tailscale")
-      .then(r => r.json())
-      .then(d => { if (d.error) setErr(true); else { setTs(d); setErr(false); } })
-      .catch(() => setErr(true));
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data, error } = useCachedRefresh<TailscaleData>({
+    cacheKey: "tailscale",
+    fetcher: async () => {
+      const r = await fetch("/api/tailscale");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const ts = mounted ? data : null;
 
   return (
     <Card>
@@ -290,7 +297,7 @@ function TailscaleCard() {
       </CardHeader>
 
       <CardContent>
-        {error && <p className="text-sm text-muted-foreground">Unavailable</p>}
+        {!ts && error && <p className="text-sm text-muted-foreground">Unavailable</p>}
 
         {!ts && !error && (
           <div className="space-y-2">
@@ -332,27 +339,32 @@ function TailscaleCard() {
 }
 
 function ActivitySummaryCard() {
-  const [total, setTotal] = useState<number | null>(null);
-  const [toolCalls, setToolCalls] = useState<number | null>(null);
-  const [messages, setMessages] = useState<number | null>(null);
-  const [cronRuns, setCronRuns] = useState<number | null>(null);
-
-  useAutoRefresh(() => {
-    const since = Date.now() - 24 * 60 * 60 * 1000;
-    Promise.all([
-      fetch(`/api/activities?since=${since}&limit=1`).then(r => r.json() as Promise<ActivitiesResponse>),
-      fetch(`/api/activities?since=${since}&limit=1&type=tool_call`).then(r => r.json() as Promise<ActivitiesResponse>),
-      fetch(`/api/activities?since=${since}&limit=1&type=user_message,assistant_message`).then(r => r.json() as Promise<ActivitiesResponse>),
-      fetch(`/api/activities?since=${since}&limit=1&type=cron_run`).then(r => r.json() as Promise<ActivitiesResponse>),
-    ])
-      .then(([all, tools, msgs, cron]) => {
-        setTotal(all.total);
-        setToolCalls(tools.total);
-        setMessages(msgs.total);
-        setCronRuns(cron.total);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<{
+    total: number;
+    toolCalls: number;
+    messages: number;
+    cronRuns: number;
+  }>({
+    cacheKey: "activity-summary",
+    fetcher: async () => {
+      const since = Date.now() - 24 * 60 * 60 * 1000;
+      const [all, tools, msgs, cron] = await Promise.all([
+        fetch(`/api/activities?since=${since}&limit=1`).then(r => r.json() as Promise<ActivitiesResponse>),
+        fetch(`/api/activities?since=${since}&limit=1&type=tool_call`).then(r => r.json() as Promise<ActivitiesResponse>),
+        fetch(`/api/activities?since=${since}&limit=1&type=user_message,assistant_message`).then(r => r.json() as Promise<ActivitiesResponse>),
+        fetch(`/api/activities?since=${since}&limit=1&type=cron_run`).then(r => r.json() as Promise<ActivitiesResponse>),
+      ]);
+      return {
+        total: all.total,
+        toolCalls: tools.total,
+        messages: msgs.total,
+        cronRuns: cron.total,
+      };
+    },
   });
+  const summary = mounted ? data : null;
 
   return (
     <Card>
@@ -365,12 +377,12 @@ function ActivitySummaryCard() {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-3xl font-bold tabular-nums">
-          {total ?? "…"}
+          {summary ? summary.total.toLocaleString() : "…"}
         </p>
         <div className="space-y-1 text-xs text-muted-foreground">
-          <p><span className="tabular-nums text-foreground">{toolCalls ?? "…"}</span> tool calls</p>
-          <p><span className="tabular-nums text-foreground">{messages ?? "…"}</span> messages</p>
-          <p><span className="tabular-nums text-foreground">{cronRuns ?? "…"}</span> cron runs</p>
+          <p><span className="tabular-nums text-foreground">{summary?.toolCalls ?? "…"}</span> tool calls</p>
+          <p><span className="tabular-nums text-foreground">{summary?.messages ?? "…"}</span> messages</p>
+          <p><span className="tabular-nums text-foreground">{summary?.cronRuns ?? "…"}</span> cron runs</p>
         </div>
       </CardContent>
     </Card>
@@ -391,9 +403,7 @@ function fmtRelativeNextRun(nextRunMs?: number) {
 }
 
 function UpcomingCronsCard() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const { data: tasks, isStale } = useCachedRefresh<ScheduledTask[]>({
+  const { data: tasks, isRefreshing } = useCachedRefresh<ScheduledTask[]>({
     cacheKey: "scheduled-tasks",
     fetcher: async () => {
       const r = await fetch("/api/scheduled-tasks");
@@ -402,7 +412,7 @@ function UpcomingCronsCard() {
       return d;
     },
   });
-  const displayTasks = mounted ? (tasks || []) : [];
+  const displayTasks = tasks || [];
 
   const upcoming = displayTasks
     .filter(task => task.type === "cron" && task.enabled && !!task.nextRunAtMs && task.nextRunAtMs > Date.now())
@@ -412,7 +422,7 @@ function UpcomingCronsCard() {
   const visible = upcoming.slice(0, 4);
 
   return (
-    <Card className={isStale ? "opacity-80" : ""}>
+    <Card className={isRefreshing ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">
@@ -420,7 +430,7 @@ function UpcomingCronsCard() {
               Upcoming Crons
             </Link>
           </CardTitle>
-          {isStale && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+          {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -487,10 +497,7 @@ function MiniSparkline({ values }: { values: number[] }) {
 }
 
 function QuickAgentsCard() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  
-  const { data: agents, isStale } = useCachedRefresh<OcAgent[]>({
+  const { data: agents, isRefreshing } = useCachedRefresh<OcAgent[]>({
     cacheKey: "agents-list",
     fetcher: async () => {
       const r = await fetch("/api/oc-agents");
@@ -508,19 +515,19 @@ function QuickAgentsCard() {
   });
 
   const defaultId = summary?.defaultAgent ?? "main";
-  const displayAgents = mounted ? (agents || []) : [];
+  const displayAgents = agents || [];
 
   return (
-    <Card className={isStale ? "opacity-80" : ""}>
+    <Card className={isRefreshing ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">
             <Link href="/agents" className="hover:underline">
-              Quick Agents
+              Agents
             </Link>
           </CardTitle>
           <div className="flex items-center gap-1.5">
-            {isStale && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             {summary && summary.recentErrors > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 tabular-nums">
                 {summary.recentErrors} err
@@ -553,16 +560,17 @@ function QuickAgentsCard() {
 }
 
 function ChannelsHealthCard() {
-  const [data, setData] = useState<ChannelsHealthData | null>(null);
-
-  useAutoRefresh(() => {
-    fetch("/api/channels-health")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.error) setData(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<ChannelsHealthData>({
+    cacheKey: "channels-health",
+    fetcher: async () => {
+      const r = await fetch("/api/channels-health");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const displayData = mounted ? data : null;
 
   return (
     <Card>
@@ -573,23 +581,23 @@ function ChannelsHealthCard() {
               Channels Health
             </Link>
           </CardTitle>
-          <span className="text-xs tabular-nums">{data ? `${data.overallPct}%` : "…"}</span>
+          <span className="text-xs tabular-nums">{displayData ? `${displayData.overallPct}%` : "…"}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-2 rounded-md overflow-hidden flex bg-muted">
-          {(data?.channels ?? []).map((channel) => (
+          {(displayData?.channels ?? []).map((channel) => (
             <div
               key={channel.id}
               title={`${channel.name}: ${channel.healthPct}%`}
               className="h-full"
-              style={{ width: `${100 / Math.max((data?.channels.length ?? 1), 1)}%`, backgroundColor: "var(--theme-accent)", opacity: Math.max(0.4, channel.healthPct / 100) }}
+              style={{ width: `${100 / Math.max((displayData?.channels.length ?? 1), 1)}%`, backgroundColor: "var(--theme-accent)", opacity: Math.max(0.4, channel.healthPct / 100) }}
             />
           ))}
-          {!data && <div className="h-full w-full animate-pulse bg-muted" />}
+          {!displayData && <div className="h-full w-full animate-pulse bg-muted" />}
         </div>
         <p className="text-[11px] text-muted-foreground">
-          {(data?.channels.length ?? 0)} channels monitored
+          {(displayData?.channels.length ?? 0)} channels monitored
         </p>
       </CardContent>
     </Card>
@@ -597,10 +605,8 @@ function ChannelsHealthCard() {
 }
 
 function TodaySpendCard() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
   const { settings } = useSettings();
-  const { data, isStale } = useCachedRefresh<CostHistoryData>({
+  const { data, isRefreshing } = useCachedRefresh<CostHistoryData>({
     cacheKey: "cost-history",
     fetcher: async () => {
       const r = await fetch("/api/cost-history");
@@ -609,7 +615,7 @@ function TodaySpendCard() {
       return d;
     },
   });
-  const displayData = mounted ? data : null;
+  const displayData = data;
 
   const daily = displayData?.daily ?? [];
   const points = daily.slice(-14).map((d) => d.cost);
@@ -619,7 +625,7 @@ function TodaySpendCard() {
   const symbol = settings.currency === "EUR" ? "€" : "$";
 
   return (
-    <Card className={isStale ? "opacity-80" : ""}>
+    <Card className={isRefreshing ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">
@@ -627,7 +633,7 @@ function TodaySpendCard() {
               Today Spend
             </Link>
           </CardTitle>
-          {isStale && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+          {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
@@ -645,21 +651,22 @@ function TodaySpendCard() {
 }
 
 function CredentialsStatusCard() {
-  const [data, setData] = useState<CredentialsSummary | null>(null);
-
-  useAutoRefresh(() => {
-    fetch("/api/credentials-summary")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.error) setData(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<CredentialsSummary>({
+    cacheKey: "credentials-summary",
+    fetcher: async () => {
+      const r = await fetch("/api/credentials-summary");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const displayData = mounted ? data : null;
 
-  const total = Math.max(data?.total ?? 0, 1);
-  const valid = data?.valid ?? 0;
-  const expired = data?.expired ?? 0;
-  const expiring = data?.expiringSoon ?? 0;
+  const total = Math.max(displayData?.total ?? 0, 1);
+  const valid = displayData?.valid ?? 0;
+  const expired = displayData?.expired ?? 0;
+  const expiring = displayData?.expiringSoon ?? 0;
   const validPct = Math.round((valid / total) * 100);
   const expiredPct = Math.round((expired / total) * 100);
 
@@ -696,18 +703,19 @@ function CredentialsStatusCard() {
 }
 
 function MemoryActivityCard() {
-  const [data, setData] = useState<MemoryActivityData | null>(null);
-
-  useAutoRefresh(() => {
-    fetch("/api/memory-activity")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.error) setData(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<MemoryActivityData>({
+    cacheKey: "memory-activity",
+    fetcher: async () => {
+      const r = await fetch("/api/memory-activity");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const displayData = mounted ? data : null;
 
-  const maxEdits = Math.max(...(data?.timeline.map((p) => p.edits) ?? [1]), 1);
+  const maxEdits = Math.max(...(displayData?.timeline.map((p) => p.edits) ?? [1]), 1);
 
   return (
     <Card>
@@ -720,7 +728,7 @@ function MemoryActivityCard() {
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-2 flex items-end gap-0.5 rounded overflow-hidden bg-muted">
-          {(data?.timeline ?? []).map((point) => (
+          {(displayData?.timeline ?? []).map((point) => (
             <div
               key={point.day}
               title={`${point.day}: ${point.edits}`}
@@ -728,10 +736,10 @@ function MemoryActivityCard() {
               style={{ backgroundColor: "var(--theme-accent)", opacity: Math.max(0.3, point.edits / maxEdits) }}
             />
           ))}
-          {!data && <div className="h-full w-full animate-pulse bg-muted" />}
+          {!displayData && <div className="h-full w-full animate-pulse bg-muted" />}
         </div>
         <div className="flex flex-wrap gap-1">
-          {(data?.recentTopics ?? []).slice(0, 5).map((topic) => (
+          {(displayData?.recentTopics ?? []).slice(0, 5).map((topic) => (
             <span key={topic} className="text-[10px] px-1.5 py-0.5 rounded bg-muted max-w-[8rem] truncate">{topic}</span>
           ))}
         </div>
@@ -741,19 +749,20 @@ function MemoryActivityCard() {
 }
 
 function MessageQueueCard() {
-  const [data, setData] = useState<MessagesSummary | null>(null);
-
-  useAutoRefresh(() => {
-    fetch("/api/messages-summary")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!d.error) setData(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<MessagesSummary>({
+    cacheKey: "messages-summary",
+    fetcher: async () => {
+      const r = await fetch("/api/messages-summary");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
   });
+  const displayData = mounted ? data : null;
 
-  const queued = data?.queued ?? 0;
-  const stuck = data?.stuck ?? 0;
+  const queued = displayData?.queued ?? 0;
+  const stuck = displayData?.stuck ?? 0;
   const pct = Math.min(100, (queued / 25) * 100);
 
   return (
@@ -783,16 +792,17 @@ function MessageQueueCard() {
 }
 
 function ActiveModelsCard() {
-  const [models, setModels] = useState<ModelUsage[]>([]);
-
-  useAutoRefresh(() => {
-    fetch("/api/model-usage")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setModels(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<ModelUsage[]>({
+    cacheKey: "model-usage",
+    fetcher: async () => {
+      const r = await fetch("/api/model-usage");
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
   });
+  const models = mounted ? (data || []) : [];
 
   const top = models
     .map((model) => ({ id: model.modelId, count: model.jobs.length }))
@@ -825,16 +835,17 @@ function ActiveModelsCard() {
 }
 
 function ConnectedNodesCard() {
-  const [nodes, setNodes] = useState<PairedNode[]>([]);
-
-  useAutoRefresh(() => {
-    fetch("/api/nodes")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setNodes(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<PairedNode[]>({
+    cacheKey: "nodes",
+    fetcher: async () => {
+      const r = await fetch("/api/nodes");
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
   });
+  const nodes = mounted ? (data || []) : [];
 
   const now = Date.now();
   const statuses = nodes.map((node) => {
@@ -872,27 +883,33 @@ function ConnectedNodesCard() {
 }
 
 function ActiveSessionsCard() {
-  const [data, setData] = useState<SessionsData | null>(null);
-  const [cost, setCost] = useState<CostHistoryData | null>(null);
-
-  useAutoRefresh(() => {
-    Promise.all([
-      fetch("/api/sessions").then((r) => r.json() as Promise<SessionsData | { error: string }>),
-      fetch("/api/cost-history").then((r) => r.json() as Promise<CostHistoryData | { error: string }>),
-    ])
-      .then(([s, c]) => {
-        if (!("error" in s)) setData(s);
-        if (!("error" in c)) setCost(c);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<SessionsData>({
+    cacheKey: "sessions",
+    fetcher: async () => {
+      const r = await fetch("/api/sessions");
+      const d = await r.json();
+      return "error" in d ? null : d;
+    },
   });
+  const { data: cost } = useCachedRefresh<CostHistoryData>({
+    cacheKey: "cost-history",
+    fetcher: async () => {
+      const r = await fetch("/api/cost-history");
+      const d = await r.json();
+      return "error" in d ? null : d;
+    },
+  });
+  const displayData = mounted ? data : null;
+  const displayCost = mounted ? cost : null;
 
-  const sessions = data?.sessions ?? [];
+  const sessions = displayData?.sessions ?? [];
   const now = Date.now();
   const active = sessions.filter((s) => now - s.updatedAt < 30 * 60 * 1000).length;
   const idle = Math.max(0, sessions.length - active);
   const total = Math.max(sessions.length, 1);
-  const points = (cost?.daily ?? []).slice(-7).map((d) => d.cost);
+  const points = (displayCost?.daily ?? []).slice(-7).map((d) => d.cost);
 
   return (
     <Card>
@@ -917,16 +934,17 @@ function ActiveSessionsCard() {
 }
 
 function SkillsQuickAccessCard() {
-  const [skills, setSkills] = useState<Array<{ location: "workspace" | "extension" | "global" }>>([]);
-
-  useAutoRefresh(() => {
-    fetch("/api/skills")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setSkills(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<Array<{ location: "workspace" | "extension" | "global" }>>({
+    cacheKey: "skills",
+    fetcher: async () => {
+      const r = await fetch("/api/skills");
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
   });
+  const skills = mounted ? (data || []) : [];
 
   const counts = {
     workspace: skills.filter((s) => s.location === "workspace").length,
@@ -940,7 +958,7 @@ function SkillsQuickAccessCard() {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">
           <Link href="/skills" className="hover:underline">
-            Skills Quick Access
+            Skills
           </Link>
         </CardTitle>
       </CardHeader>
@@ -965,16 +983,17 @@ function fmtSize(bytes: number): string {
 }
 
 function WorkspacesOverviewCard() {
-  const [sizes, setSizes] = useState<WorkspaceSize[]>([]);
-
-  useAutoRefresh(() => {
-    fetch("/api/workspace-sizes")
-      .then((r) => r.json())
-      .then((d) => {
-        if (Array.isArray(d)) setSizes(d);
-      })
-      .catch(() => {});
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<WorkspaceSize[]>({
+    cacheKey: "workspace-sizes",
+    fetcher: async () => {
+      const r = await fetch("/api/workspace-sizes");
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
   });
+  const sizes = mounted ? (data || []) : [];
 
   const top = sizes.slice(0, 4);
   const max = Math.max(...top.map((s) => s.sizeBytes), 1);
@@ -1003,19 +1022,6 @@ function WorkspacesOverviewCard() {
         {top.length === 0 && <div className="h-12 rounded bg-muted animate-pulse" />}
       </CardContent>
     </Card>
-  );
-}
-
-// ── Global Refresh Indicator ──────────────────────────────────────────────
-
-function RefreshIndicator() {
-  const activeCount = useGlobalRefreshIndicator();
-  if (activeCount === 0) return null;
-  return (
-    <div className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground animate-pulse">
-      <Loader2 className="h-3 w-3 animate-spin" />
-      Live data incoming…
-    </div>
   );
 }
 
@@ -1052,7 +1058,6 @@ export default function Dashboard() {
             </div>
           <div className="flex items-center gap-3 mt-1">
             <p className="text-xs sm:text-sm text-muted-foreground">Welcome to Helm</p>
-            <RefreshIndicator />
           </div>
         </div>
 
