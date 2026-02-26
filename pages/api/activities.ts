@@ -408,7 +408,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (DEMO_MODE) {
     const type = String(req.query.type ?? "");
     const totals: Record<string, number> = {
-      "": 1356, "tool_call": 711, "user_message,assistant_message": 587, "cron_run": 15,
+      "": 842, "tool_call": 423, "user_message,assistant_message": 371, "cron_run": 48,
     };
     return res.status(200).json({ activities: [], total: totals[type] ?? 100 });
   }

@@ -71,9 +71,9 @@ export const channelsSummary = {
 
 // ── /api/credentials-summary ────────────────────────────────────────────────
 export const credentialsSummary = {
-  total: 18,
-  valid: 14,
-  expired: 2,
+  total: 12,
+  valid: 9,
+  expired: 1,
   expiringSoon: 2,
   byCategory: { oauth: 6, api_key: 8, token: 4 },
 };
@@ -136,14 +136,14 @@ export const sessions = {
       updatedAt: hoursAgo(i),
     })),
   ],
-  totalCostEur: 43.21,
-  totalInputTokens: 4_800_000,
-  totalOutputTokens: 1_200_000,
+  totalCostEur: 31.50,
+  totalInputTokens: 3_200_000,
+  totalOutputTokens: 980_000,
 };
 
 // ── /api/cost-history ───────────────────────────────────────────────────────
 export const costHistory = {
-  summary: { today: 9.07, week: 43.21, month: 156.80, allTime: 312.40 },
+  summary: { today: 4.82, week: 31.50, month: 124.30, allTime: 487.60 },
   byModel: [
     { model: "anthropic/claude-opus-4-6", cost: 89.50, percent: 57 },
     { model: "anthropic/claude-haiku-4-5", cost: 67.30, percent: 43 },
@@ -295,7 +295,7 @@ export const activity = {
     { name: "whatsapp", label: "WhatsApp", count: 80 },
   ],
   cron: { success: 14, fail: 1, total: 15 },
-  totalEvents: 1356,
+  totalEvents: 842,
   logDays: 30,
   logSource: "demo",
   errors: [],
@@ -305,12 +305,12 @@ export const activity = {
 export const counts = {
   agents: 2,
   channels: 3,
-  credentials: 21,
-  crons: 18,
-  memory: 36,
-  models: 6,
-  nodes: 5,
-  sessions: 49,
-  skills: 49,
+  credentials: 12,
+  crons: 8,
+  memory: 15,
+  models: 4,
+  nodes: 3,
+  sessions: 24,
+  skills: 25,
   workspaces: 2,
 };
