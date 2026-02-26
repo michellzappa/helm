@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
   Droplets, Wind, Network, ArrowUpRight, ArrowDownRight, AlertTriangle, Circle,
+  Bot, Radio, Euro, KeyRound, Calendar, Brain, Send, Cpu, Server, History, Zap, FolderOpen, Activity, Monitor, MessageSquare,
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { useCachedRefresh } from "@/lib/cache-refresh";
@@ -39,6 +40,11 @@ interface ScheduledTask {
   enabled: boolean;
   nextRunAtMs?: number;
   model?: string;
+}
+
+// ── Widget icon helper ────────────────────────────────────────────────────
+function WidgetIcon({ icon: Icon }: { icon: React.ElementType }) {
+  return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -222,12 +228,17 @@ function SystemCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">System</CardTitle>
-        {metrics && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Load {metrics.cpu.loadAvg.map(l => l.toFixed(2)).join(" · ")}
-          </p>
-        )}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">System</CardTitle>
+            {metrics && (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Load {metrics.cpu.loadAvg.map(l => l.toFixed(2)).join(" · ")}
+              </p>
+            )}
+          </div>
+          <WidgetIcon icon={Monitor} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {!metrics ? (
@@ -369,11 +380,16 @@ function ActivitySummaryCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/activities" className="hover:underline">
-            24h Activity
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/activities" className="hover:underline">
+                24h Activity
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={Activity} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-3xl font-bold tabular-nums">
@@ -424,13 +440,18 @@ function UpcomingCronsCard() {
   return (
     <Card className={isRefreshing ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">
-            <Link href="/crons" className="hover:underline">
-              Upcoming Crons
-            </Link>
-          </CardTitle>
-          {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/crons" className="hover:underline">
+                Upcoming Crons
+              </Link>
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            <WidgetIcon icon={Calendar} />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -520,12 +541,14 @@ function QuickAgentsCard() {
   return (
     <Card className={isRefreshing ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">
-            <Link href="/agents" className="hover:underline">
-              Agents
-            </Link>
-          </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/agents" className="hover:underline">
+                Agents
+              </Link>
+            </CardTitle>
+          </div>
           <div className="flex items-center gap-1.5">
             {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             {summary && summary.recentErrors > 0 && (
@@ -533,6 +556,7 @@ function QuickAgentsCard() {
                 {summary.recentErrors} err
               </span>
             )}
+            <WidgetIcon icon={Bot} />
           </div>
         </div>
       </CardHeader>
@@ -575,13 +599,18 @@ function ChannelsHealthCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">
-            <Link href="/channels" className="hover:underline">
-              Channels Health
-            </Link>
-          </CardTitle>
-          <span className="text-xs tabular-nums">{displayData ? `${displayData.overallPct}%` : "…"}</span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/channels" className="hover:underline">
+                Channels Health
+              </Link>
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs tabular-nums">{displayData ? `${displayData.overallPct}%` : "…"}</span>
+            <WidgetIcon icon={Radio} />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -627,13 +656,18 @@ function TodaySpendCard() {
   return (
     <Card className={isRefreshing ? "opacity-80" : ""}>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">
-            <Link href="/costs" className="hover:underline">
-              Today Spend
-            </Link>
-          </CardTitle>
-          {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/costs" className="hover:underline">
+                Today Spend
+              </Link>
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+            <WidgetIcon icon={Euro} />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-1">
@@ -673,11 +707,16 @@ function CredentialsStatusCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/credentials" className="hover:underline">
-            Credentials
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/credentials" className="hover:underline">
+                Credentials
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={KeyRound} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex items-center gap-3">
@@ -720,11 +759,16 @@ function MemoryActivityCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/memory" className="hover:underline">
-            Memory Activity
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/memory" className="hover:underline">
+                Memory Activity
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={Brain} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-2 flex items-end gap-0.5 rounded overflow-hidden bg-muted">
@@ -768,17 +812,22 @@ function MessageQueueCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">
-            <Link href="/messages" className="hover:underline">
-              Message Queue
-            </Link>
-          </CardTitle>
-          {stuck > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 inline-flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" /> {stuck}
-            </span>
-          )}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/messages" className="hover:underline">
+                Message Queue
+              </Link>
+            </CardTitle>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {stuck > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 inline-flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {stuck}
+              </span>
+            )}
+            <WidgetIcon icon={Send} />
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -813,11 +862,16 @@ function ActiveModelsCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/models" className="hover:underline">
-            Active Models
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/models" className="hover:underline">
+                Active Models
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={Cpu} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {top.map((model) => (
@@ -859,11 +913,16 @@ function ConnectedNodesCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/nodes" className="hover:underline">
-            Connected Nodes
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/nodes" className="hover:underline">
+                Connected Nodes
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={Server} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="grid grid-cols-8 gap-1">
@@ -914,11 +973,16 @@ function ActiveSessionsCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/sessions" className="hover:underline">
-            Active Sessions
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/sessions" className="hover:underline">
+                Active Sessions
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={History} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-2xl font-bold tabular-nums">{sessions.length}</p>
@@ -956,11 +1020,16 @@ function SkillsQuickAccessCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/skills" className="hover:underline">
-            Skills
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/skills" className="hover:underline">
+                Skills
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={Zap} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-2 rounded bg-muted overflow-hidden flex">
@@ -1001,11 +1070,16 @@ function WorkspacesOverviewCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">
-          <Link href="/workspaces" className="hover:underline">
-            Workspaces
-          </Link>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/workspaces" className="hover:underline">
+                Workspaces
+              </Link>
+            </CardTitle>
+          </div>
+          <WidgetIcon icon={FolderOpen} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {top.map((ws) => (
