@@ -4,6 +4,7 @@ import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { sessions as _demoFixture } from "../../lib/demo-fixtures";
+import { getOrFetch } from "../../lib/server-cache";
 
 const HOME = os.homedir();
 
@@ -93,58 +94,52 @@ let _cache: { data: SessionsData; at: number } | null = null;
 const TTL = 30_000;
 
 async function handler(_req: NextApiRequest, res: NextApiResponse) {
-  if (_cache && Date.now() - _cache.at < TTL) {
-    return res.json(_cache.data);
-  }
-  _cronNames = null; // refresh cron names on cache miss
-
   try {
-    const raw = await readFile(
-      join(HOME, ".openclaw/agents/main/sessions/sessions.json"),
-      "utf-8"
-    );
-    const all: Record<string, Record<string, unknown>> = JSON.parse(raw);
+    const data = await getOrFetch<SessionsData>("api-sessions", 120_000, async () => {
+      _cronNames = null;
+      const raw = await readFile(
+        join(HOME, ".openclaw/agents/main/sessions/sessions.json"),
+        "utf-8"
+      );
+      const all: Record<string, Record<string, unknown>> = JSON.parse(raw);
 
-    const cronNames = await loadCronNames();
-    const sessions: SessionEntry[] = [];
+      const cronNames = await loadCronNames();
+      const sessions: SessionEntry[] = [];
 
-    for (const [key, val] of Object.entries(all)) {
-      // Skip sub-run sessions (key contains ":run:")
-      if (key.includes(":run:")) continue;
+      for (const [key, val] of Object.entries(all)) {
+        if (key.includes(":run:")) continue;
 
-      const { kind, label } = parseKey(key, cronNames);
-      const model         = (val.model as string | null) ?? null;
-      const inputTokens   = Number(val.inputTokens  ?? 0);
-      const outputTokens  = Number(val.outputTokens ?? 0);
-      const cacheRead     = Number(val.cacheRead     ?? 0);
-      const cacheWrite    = Number(val.cacheWrite    ?? 0);
-      const totalTokens   = Number(val.totalTokens   ?? 0);
-      const updatedAt     = Number(val.updatedAt     ?? 0);
-      const costEur       = model ? calcCost(model, inputTokens, outputTokens, cacheRead, cacheWrite) : 0;
+        const { kind, label } = parseKey(key, cronNames);
+        const model = (val.model as string | null) ?? null;
+        const inputTokens = Number(val.inputTokens ?? 0);
+        const outputTokens = Number(val.outputTokens ?? 0);
+        const cacheRead = Number(val.cacheRead ?? 0);
+        const cacheWrite = Number(val.cacheWrite ?? 0);
+        const totalTokens = Number(val.totalTokens ?? 0);
+        const updatedAt = Number(val.updatedAt ?? 0);
+        const costEur = model ? calcCost(model, inputTokens, outputTokens, cacheRead, cacheWrite) : 0;
 
-      sessions.push({ key, sessionId: String(val.sessionId ?? ""), kind, label, model, inputTokens, outputTokens, cacheRead, cacheWrite, totalTokens, costEur, updatedAt });
-    }
-
-    // Sort newest first
-    sessions.sort((a, b) => b.updatedAt - a.updatedAt);
-
-    const totalCostEur       = sessions.reduce((s, x) => s + x.costEur, 0);
-    const totalInputTokens   = sessions.reduce((s, x) => s + x.inputTokens + x.cacheRead, 0);
-    const totalOutputTokens  = sessions.reduce((s, x) => s + x.outputTokens, 0);
-
-    // Cost breakdown by model
-    const costByModel: Record<string, number> = {};
-    for (const s of sessions) {
-      if (s.model && s.costEur > 0) {
-        costByModel[s.model] = (costByModel[s.model] ?? 0) + s.costEur;
+        sessions.push({ key, sessionId: String(val.sessionId ?? ""), kind, label, model, inputTokens, outputTokens, cacheRead, cacheWrite, totalTokens, costEur, updatedAt });
       }
-    }
-    const byCost = Object.entries(costByModel)
-      .map(([model, costEur]) => ({ model, costEur }))
-      .sort((a, b) => b.costEur - a.costEur);
 
-    const data: SessionsData = { sessions, totalCostEur, totalInputTokens, totalOutputTokens, byCost };
-    _cache = { data, at: Date.now() };
+      sessions.sort((a, b) => b.updatedAt - a.updatedAt);
+
+      const totalCostEur = sessions.reduce((s, x) => s + x.costEur, 0);
+      const totalInputTokens = sessions.reduce((s, x) => s + x.inputTokens + x.cacheRead, 0);
+      const totalOutputTokens = sessions.reduce((s, x) => s + x.outputTokens, 0);
+
+      const costByModel: Record<string, number> = {};
+      for (const s of sessions) {
+        if (s.model && s.costEur > 0) {
+          costByModel[s.model] = (costByModel[s.model] ?? 0) + s.costEur;
+        }
+      }
+      const byCost = Object.entries(costByModel)
+        .map(([model, costEur]) => ({ model, costEur }))
+        .sort((a, b) => b.costEur - a.costEur);
+
+      return { sessions, totalCostEur, totalInputTokens, totalOutputTokens, byCost };
+    });
     res.json(data);
   } catch (err: unknown) {
     res.status(500).json({ error: String(err) });

@@ -4,8 +4,12 @@ import { join } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { ensureWarmer } from "../../lib/cache-warmer";
 
 const execAsync = promisify(exec);
+
+// Start cache warmer on first API hit (sidebar loads counts on every page)
+ensureWarmer();
 import type { SidebarCounts } from "@/lib/types";
 import { withDemo } from "../../lib/demo-guard";
 import { counts as _demoFixture } from "../../lib/demo-fixtures";

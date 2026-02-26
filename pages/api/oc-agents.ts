@@ -4,8 +4,10 @@ import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { ocAgents as _demoFixture } from "../../lib/demo-fixtures";
+import { getOrFetch } from "../../lib/server-cache";
 
 const HOME = os.homedir();
+const TTL_MS = 120_000;
 
 export interface OcBinding {
   channel: string;
@@ -32,58 +34,56 @@ async function handler(
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const raw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
-    const config = JSON.parse(raw);
+    const agents = await getOrFetch<OcAgent[]>("api-oc-agents", TTL_MS, async () => {
+      const raw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
+      const config = JSON.parse(raw);
 
-    const defaults = config.agents?.defaults || {};
-    const list: any[] = config.agents?.list || [{ id: "main" }];
-    const allBindings: any[] = config.bindings || [];
+      const defaults = config.agents?.defaults || {};
+      const list: any[] = config.agents?.list || [{ id: "main" }];
+      const allBindings: any[] = config.bindings || [];
 
-    const defaultWorkspace = defaults.workspace || join(HOME, ".openclaw/workspace");
-    const defaultModel = defaults.model?.primary || "unknown";
+      const defaultWorkspace = defaults.workspace || join(HOME, ".openclaw/workspace");
+      const defaultModel = defaults.model?.primary || "unknown";
 
-    const agents: OcAgent[] = await Promise.all(
-      list.map(async (a: any) => {
-        const id = a.id;
-        const workspace = a.workspace || (id === "main" ? defaultWorkspace : join(HOME, `.openclaw/workspace-${id}`));
-        const agentDir = a.agentDir || join(HOME, `.openclaw/agents/${id}/agent`);
-        const model = a.model || defaultModel;
-        const skillCount = Array.isArray(a.skills) ? a.skills.length : 0;
+      return Promise.all(
+        list.map(async (a: any) => {
+          const id = a.id;
+          const workspace = a.workspace || (id === "main" ? defaultWorkspace : join(HOME, `.openclaw/workspace-${id}`));
+          const agentDir = a.agentDir || join(HOME, `.openclaw/agents/${id}/agent`);
+          const model = a.model || defaultModel;
+          const skillCount = Array.isArray(a.skills) ? a.skills.length : 0;
 
-        // Count sessions for this agent
-        let sessionCount = 0;
-        try {
-          const sessionsDir = join(HOME, `.openclaw/agents/${id}/sessions`);
-          const files = await readdir(sessionsDir);
-          sessionCount = files.filter(f => f.endsWith(".json")).length;
-        } catch {}
+          let sessionCount = 0;
+          try {
+            const sessionsDir = join(HOME, `.openclaw/agents/${id}/sessions`);
+            const files = await readdir(sessionsDir);
+            sessionCount = files.filter((f) => f.endsWith(".json")).length;
+          } catch {}
 
-        // Collect bindings for this agent
-        const bindings: OcBinding[] = allBindings
-          .filter((b: any) => b.agentId === id)
-          .map((b: any) => ({
-            channel: b.match?.channel || "any",
-            accountId: b.match?.accountId,
-            peer: b.match?.peer,
-          }));
+          const bindings: OcBinding[] = allBindings
+            .filter((b: any) => b.agentId === id)
+            .map((b: any) => ({
+              channel: b.match?.channel || "any",
+              accountId: b.match?.accountId,
+              peer: b.match?.peer,
+            }));
 
-        // If main agent and no explicit bindings, it's the catch-all
-        const isDefault = a.default === true || (id === "main" && allBindings.every(b => b.agentId !== "main"));
+          const isDefault = a.default === true || (id === "main" && allBindings.every((b) => b.agentId !== "main"));
 
-        return {
-          id,
-          name: a.name || a.id,
-          workspace,
-          agentDir,
-          model,
-          isDefault,
-          sessionCount,
-          skillCount,
-          bindings,
-        };
-      })
-    );
-
+          return {
+            id,
+            name: a.name || a.id,
+            workspace,
+            agentDir,
+            model,
+            isDefault,
+            sessionCount,
+            skillCount,
+            bindings,
+          };
+        })
+      );
+    });
     res.status(200).json(agents);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });

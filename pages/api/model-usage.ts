@@ -6,8 +6,10 @@ import { promisify } from "util";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { modelUsage as _demoFixture } from "../../lib/demo-fixtures";
+import { getOrFetch } from "../../lib/server-cache";
 
 const execAsync = promisify(exec);
+const TTL_MS = 120_000;
 
 export interface ModelUsage {
   modelId: string;
@@ -45,28 +47,27 @@ async function handler(
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const [aliasMap, cronsRaw] = await Promise.all([
-      buildAliasMap(),
-      readFile(join(os.homedir(), ".openclaw/cron/jobs.json"), "utf-8"),
-    ]);
+    const data = await getOrFetch<ModelUsage[]>("api-model-usage", TTL_MS, async () => {
+      const [aliasMap, cronsRaw] = await Promise.all([
+        buildAliasMap(),
+        readFile(join(os.homedir(), ".openclaw/cron/jobs.json"), "utf-8"),
+      ]);
 
-    const cronJobs = JSON.parse(cronsRaw).jobs ?? [];
-    const usageMap = new Map<string, ModelUsage>();
+      const cronJobs = JSON.parse(cronsRaw).jobs ?? [];
+      const usageMap = new Map<string, ModelUsage>();
 
-    for (const job of cronJobs) {
-      const jobName: string = job.name || job.payload?.name || "Unknown";
-      const modelRef: string = job.payload?.model || job.model || "default";
+      for (const job of cronJobs) {
+        const jobName: string = job.name || job.payload?.name || "Unknown";
+        const modelRef: string = job.payload?.model || job.model || "default";
+        const modelId = aliasMap[modelRef] ?? modelRef;
 
-      // Resolve alias → canonical ID; fall back to ref itself if unknown
-      const modelId = aliasMap[modelRef] ?? modelRef;
+        if (!usageMap.has(modelId)) usageMap.set(modelId, { modelId, jobs: [] });
+        usageMap.get(modelId)!.jobs.push({ jobId: job.id, jobName, modelRef });
+      }
 
-      if (!usageMap.has(modelId)) usageMap.set(modelId, { modelId, jobs: [] });
-      usageMap.get(modelId)!.jobs.push({ jobId: job.id, jobName, modelRef });
-    }
-
-    res.status(200).json(
-      Array.from(usageMap.values()).sort((a, b) => a.modelId.localeCompare(b.modelId))
-    );
+      return Array.from(usageMap.values()).sort((a, b) => a.modelId.localeCompare(b.modelId));
+    });
+    res.status(200).json(data);
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

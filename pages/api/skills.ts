@@ -4,6 +4,7 @@ import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { skills as _demoFixture } from "../../lib/demo-fixtures";
+import { getOrFetch } from "../../lib/server-cache";
 
 interface Skill {
   name: string;
@@ -25,6 +26,7 @@ const SKIP_DIRS = new Set([
   "state", "drafts", "archives",
 ]);
 const SCRIPT_EXTENSIONS = new Set([".py", ".sh", ".ts", ".js"]);
+const TTL_MS = 120_000;
 
 async function scanScripts(skillPath: string): Promise<string[]> {
   const scripts: string[] = [];
@@ -136,31 +138,30 @@ async function handler(
   }
 
   try {
-    const home = os.homedir();
+    const allSkills = await getOrFetch<Skill[]>("api-skills", TTL_MS, async () => {
+      const home = os.homedir();
 
-    let disabledSkills: string[] = [];
-    try {
-      const configPath = join(home, ".openclaw/workspace/config/disabled-skills.json");
-      const configContent = await readFile(configPath, "utf-8");
-      const config = JSON.parse(configContent);
-      disabledSkills = config.disabled || [];
-    } catch {
-      // no config
-    }
+      let disabledSkills: string[] = [];
+      try {
+        const configPath = join(home, ".openclaw/workspace/config/disabled-skills.json");
+        const configContent = await readFile(configPath, "utf-8");
+        const config = JSON.parse(configContent);
+        disabledSkills = config.disabled || [];
+      } catch {}
 
-    const [workspaceSkills, globalSkills, extensionSkills] = await Promise.all([
-      scanSkills(join(home, ".openclaw/workspace/skills"), "workspace"),
-      scanSkills("/opt/homebrew/lib/node_modules/openclaw/skills", "global"),
-      scanSkills(join(home, ".openclaw/extensions"), "extension").catch(() => []),
-    ]);
+      const [workspaceSkills, globalSkills, extensionSkills] = await Promise.all([
+        scanSkills(join(home, ".openclaw/workspace/skills"), "workspace"),
+        scanSkills("/opt/homebrew/lib/node_modules/openclaw/skills", "global"),
+        scanSkills(join(home, ".openclaw/extensions"), "extension").catch(() => []),
+      ]);
 
-    const allSkills = [...workspaceSkills, ...globalSkills, ...extensionSkills]
-      .map((skill) => ({
-        ...skill,
-        status: disabledSkills.includes(skill.name) ? "disabled" : skill.status,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
+      return [...workspaceSkills, ...globalSkills, ...extensionSkills]
+        .map((skill) => ({
+          ...skill,
+          status: disabledSkills.includes(skill.name) ? "disabled" : skill.status,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    });
     res.status(200).json(allSkills);
   } catch (error) {
     console.error("[skills API] Error:", error);
