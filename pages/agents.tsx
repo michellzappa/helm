@@ -186,7 +186,13 @@ export default function AgentsPage() {
                           </code>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                          <span
+                            className="text-xs font-medium px-2 py-1 rounded"
+                            style={{
+                              backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+                              color: "var(--theme-accent)",
+                            }}
+                          >
                             {agent.model}
                           </span>
                         </TableCell>

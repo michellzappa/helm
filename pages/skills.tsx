@@ -24,10 +24,23 @@ interface Skill {
 
 const LOCATION_ORDER: Record<string, number> = { workspace: 0, extension: 1, global: 2 };
 
-const TYPE_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  workspace: { bg: "bg-purple-100 dark:bg-purple-900", text: "text-purple-700 dark:text-purple-200", label: "Custom" },
-  global:    { bg: "bg-blue-100 dark:bg-blue-900",    text: "text-blue-700 dark:text-blue-200",    label: "Built-in" },
-  extension: { bg: "bg-green-100 dark:bg-green-900",  text: "text-green-700 dark:text-green-200",  label: "Extension" },
+const TYPE_CONFIG: Record<string, { className?: string; style?: React.CSSProperties; label: string }> = {
+  workspace: { className: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200", label: "Custom" },
+  global: {
+    label: "Built-in",
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.7,
+    },
+  },
+  extension: {
+    label: "Extension",
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
 };
 
 function SkillsSkeleton() {
@@ -203,7 +216,7 @@ export default function SkillsPage() {
                         <span className="line-clamp-2">{skill.description}</span>
                       </TableCell>
                       <TableCell>
-                        <span className={`text-xs font-medium px-2 py-1 rounded ${typeConf.bg} ${typeConf.text}`}>
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${typeConf.className ?? ""}`} style={typeConf.style}>
                           {typeConf.label}
                         </span>
                       </TableCell>
@@ -234,7 +247,7 @@ export default function SkillsPage() {
                 <div className="px-6 pb-6 space-y-5">
                   {/* Badges */}
                   <div className="flex flex-wrap gap-2">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${typeConf.bg} ${typeConf.text}`}>
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${typeConf.className ?? ""}`} style={typeConf.style}>
                       {typeConf.label}
                     </span>
                     {selectedSkill.workspace && (

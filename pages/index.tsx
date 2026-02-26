@@ -508,7 +508,14 @@ function QuickAgentsCard() {
           <div className="flex items-center gap-1.5">
             {isRefreshing && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             {summary && summary.recentErrors > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 tabular-nums">
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded tabular-nums"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+                  color: "var(--theme-accent)",
+                  opacity: 0.5,
+                }}
+              >
                 {summary.recentErrors} err
               </span>
             )}
@@ -583,7 +590,10 @@ function SpendCard() {
       <CardContent className="space-y-2">
         <div className="flex items-end justify-between">
           <p className="text-3xl leading-none font-bold tabular-nums">{symbol}{today.toFixed(2)}</p>
-          <span className={cn("text-xs inline-flex items-center gap-0.5 tabular-nums", delta >= 0 ? "text-red-500" : "text-green-600")}>
+          <span
+            className="text-xs inline-flex items-center gap-0.5 tabular-nums"
+            style={{ color: "var(--theme-accent)", opacity: delta >= 0 ? 1 : 0.5 }}
+          >
             {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
             {symbol}{Math.abs(delta).toFixed(2)}
           </span>
@@ -759,7 +769,14 @@ function MessageQueueCard() {
           </div>
           <div className="flex items-center gap-1.5">
             {stuck > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 inline-flex items-center gap-1">
+              <span
+                className="text-[10px] px-1.5 py-0.5 rounded inline-flex items-center gap-1"
+                style={{
+                  backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+                  color: "var(--theme-accent)",
+                  opacity: 0.7,
+                }}
+              >
                 <AlertTriangle className="h-3 w-3" /> {stuck}
               </span>
             )}

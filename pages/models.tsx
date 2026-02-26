@@ -13,15 +13,31 @@ interface ModelUsage {
   jobs: Array<{ jobId: string; jobName: string; modelRef: string }>;
 }
 
-const SPEED_COLORS: Record<string, string> = {
-  fast:     "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
-  balanced: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-  slow:     "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
+const SPEED_COLORS: Record<string, { className?: string; style?: React.CSSProperties }> = {
+  fast: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
+  balanced: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.7,
+    },
+  },
+  slow: { className: "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200" },
 };
 
-const TAG_COLORS: Record<string, string> = {
-  default:    "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
-  configured: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
+const TAG_COLORS: Record<string, { className?: string; style?: React.CSSProperties }> = {
+  default: { className: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200" },
+  configured: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
 };
 
 function formatBytes(bytes: number): string {
@@ -139,9 +155,14 @@ export default function ModelsPage() {
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {model.tags?.filter(t => !t.startsWith("alias:")).map(tag => (
-                            <span key={tag} className={`text-xs font-medium px-2 py-0.5 rounded ${TAG_COLORS[tag] ?? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
+                            (() => {
+                              const tagStyle = TAG_COLORS[tag] ?? { className: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400" };
+                              return (
+                            <span key={tag} className={`text-xs font-medium px-2 py-0.5 rounded ${tagStyle.className ?? ""}`} style={tagStyle.style}>
                               {tag}
                             </span>
+                              );
+                            })()
                           ))}
                           {model.sizeBytes ? (
                             <span className="text-xs text-muted-foreground">{formatBytes(model.sizeBytes)}</span>
@@ -150,11 +171,14 @@ export default function ModelsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {model.speed ? (
-                          <span className={`text-xs font-medium px-2 py-0.5 rounded capitalize ${SPEED_COLORS[model.speed]}`}>
-                            {model.speed}
-                          </span>
-                        ) : "—"}
+                        {model.speed ? (() => {
+                          const speedStyle = SPEED_COLORS[model.speed];
+                          return (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded capitalize ${speedStyle.className ?? ""}`} style={speedStyle.style}>
+                              {model.speed}
+                            </span>
+                          );
+                        })() : "—"}
                       </TableCell>
                       <TableCell className="text-right text-sm text-muted-foreground">
                         {model.context ? `${Math.round(model.context / 1000)}K` : "—"}

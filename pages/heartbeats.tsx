@@ -18,18 +18,35 @@ function fmtAge(ts: number): string {
   return `${secs}s ago`;
 }
 
-function statusColor(status: string): string {
+function statusColor(status: string): { className?: string; style?: React.CSSProperties } {
   switch (status) {
     case "ok":
     case "success":
-      return "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200";
+      return {
+        style: {
+          backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+          color: "var(--theme-accent)",
+        },
+      };
     case "skipped":
-      return "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200";
+      return {
+        style: {
+          backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+          color: "var(--theme-accent)",
+          opacity: 0.7,
+        },
+      };
     case "error":
     case "failed":
-      return "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200";
+      return {
+        style: {
+          backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+          color: "var(--theme-accent)",
+          opacity: 0.5,
+        },
+      };
     default:
-      return "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400";
+      return { className: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400" };
   }
 }
 
@@ -102,11 +119,14 @@ export default function HeartbeatsPage() {
             </CardHeader>
             <CardContent className="pt-0">
               <p className="text-xl sm:text-2xl font-semibold">
-                {loading ? "…" : data ? (
-                  <span className={`text-xs px-2 py-1 rounded font-medium ${statusColor(data.status)}`}>
-                    {data.status}
-                  </span>
-                ) : "—"}
+                {loading ? "…" : data ? (() => {
+                  const statusStyle = statusColor(data.status);
+                  return (
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${statusStyle.className ?? ""}`} style={statusStyle.style}>
+                      {data.status}
+                    </span>
+                  );
+                })() : "—"}
               </p>
             </CardContent>
           </Card>
@@ -172,9 +192,14 @@ export default function HeartbeatsPage() {
                     {new Date(data.ts).toLocaleString()}
                   </TableCell>
                   <TableCell>
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${statusColor(data.status)}`}>
-                      {data.status}
-                    </span>
+                    {(() => {
+                      const statusStyle = statusColor(data.status);
+                      return (
+                        <span className={`text-xs px-2 py-1 rounded font-medium ${statusStyle.className ?? ""}`} style={statusStyle.style}>
+                          {data.status}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {data.reason || "—"}

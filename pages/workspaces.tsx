@@ -32,11 +32,22 @@ const TYPE_LABELS = {
   session: "Session",
 };
 
-const TYPE_COLORS = {
-  main: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
-  project: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-  skill: "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
-  session: "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
+const TYPE_COLORS: Record<string, { className?: string; style?: React.CSSProperties }> = {
+  main: { className: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200" },
+  project: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.7,
+    },
+  },
+  skill: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
+  session: { className: "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200" },
 };
 
 export default function WorkspacesPage() {
@@ -164,13 +175,17 @@ export default function WorkspacesPage() {
                           </div>
                         </TableCell>
                         <TableCell>
+                          {(() => {
+                            const typeStyle = TYPE_COLORS[workspace.type];
+                            return (
                           <span
-                            className={`text-xs font-medium px-2 py-1 rounded ${
-                              TYPE_COLORS[workspace.type]
-                            }`}
+                            className={`text-xs font-medium px-2 py-1 rounded ${typeStyle.className ?? ""}`}
+                            style={typeStyle.style}
                           >
                             {TYPE_LABELS[workspace.type]}
                           </span>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-sm max-w-md">
                           {workspace.description}
@@ -190,15 +205,26 @@ export default function WorkspacesPage() {
                           </code>
                         </TableCell>
                         <TableCell>
+                          {(() => {
+                            const statusStyle = workspace.status === "active"
+                              ? {
+                                  backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+                                  color: "var(--theme-accent)",
+                                }
+                              : {
+                                  backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+                                  color: "var(--theme-accent)",
+                                  opacity: 0.5,
+                                };
+                            return (
                           <span
-                            className={`text-xs font-medium px-2 py-1 rounded ${
-                              workspace.status === "active"
-                                ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200"
-                                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                            }`}
+                            className="text-xs font-medium px-2 py-1 rounded"
+                            style={statusStyle}
                           >
                             {workspace.status === "active" ? "Active" : "Archived"}
                           </span>
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
                     );

@@ -24,12 +24,23 @@ const CATEGORY_ICON: Record<string, React.ReactNode> = {
   Topic:  <Tag className="h-3.5 w-3.5" />,
   Skill:  <Book className="h-3.5 w-3.5" />,
 };
-const CATEGORY_COLOR: Record<string, string> = {
-  System: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200",
-  Daily:  "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-  Topic:  "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200",
-  Skill:  "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
-  Other:  "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+const CATEGORY_COLOR: Record<string, { className?: string; style?: React.CSSProperties }> = {
+  System: { className: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200" },
+  Daily: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.7,
+    },
+  },
+  Topic: { className: "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200" },
+  Skill: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
+  Other: { className: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400" },
 };
 
 function formatDate(ms: number): string {
@@ -150,10 +161,18 @@ export default function Memory() {
                   >
                     <TableCell className="font-medium">{memory.name}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${CATEGORY_COLOR[memory.category] ?? CATEGORY_COLOR.Other}`}>
+                      {(() => {
+                        const categoryStyle = CATEGORY_COLOR[memory.category] ?? CATEGORY_COLOR.Other;
+                        return (
+                      <span
+                        className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${categoryStyle.className ?? ""}`}
+                        style={categoryStyle.style}
+                      >
                         {CATEGORY_ICON[memory.category] ?? <FileText className="h-3.5 w-3.5" />}
                         {memory.category}
                       </span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {formatDate(memory.lastModifiedMs)}

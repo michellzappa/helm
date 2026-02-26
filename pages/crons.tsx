@@ -35,6 +35,20 @@ export default function ScheduledPage() {
   const [filterQuery, setFilterQuery] = useState("");
   // Per-job run state: "idle" | "running" | "ok" | "error"
   const [runState, setRunState] = useState<Record<string, "idle" | "running" | "ok" | "error">>({});
+  const accentFull = {
+    backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+    color: "var(--theme-accent)",
+  };
+  const accentMedium = {
+    backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+    color: "var(--theme-accent)",
+    opacity: 0.7,
+  };
+  const accentLow = {
+    backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+    color: "var(--theme-accent)",
+    opacity: 0.5,
+  };
 
   useAutoRefresh(() => {
     fetch("/api/scheduled-tasks")
@@ -241,7 +255,7 @@ export default function ScheduledPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 capitalize">
+                        <span className="text-xs font-medium px-2 py-1 rounded capitalize" style={accentFull}>
                           {task.agent || "default"}
                         </span>
                       </TableCell>
@@ -271,12 +285,12 @@ export default function ScheduledPage() {
                       <TableCell>
                         {(() => {
                           const status = task.status || (task.enabled ? "ok" : "disabled");
-                          const styles: Record<string, string> = {
-                            ok: "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
-                            error: "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200",
-                            pending: "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200",
-                            idle: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
-                            disabled: "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500",
+                          const styles: Record<string, { className?: string; style?: React.CSSProperties }> = {
+                            ok: { style: accentFull },
+                            error: { style: accentLow },
+                            pending: { style: accentMedium },
+                            idle: { className: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
+                            disabled: { className: "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500" },
                           };
                           const labels: Record<string, string> = {
                             ok: "OK",
@@ -288,14 +302,19 @@ export default function ScheduledPage() {
                           // LaunchAgents: keep simple Running/Stopped
                           if (task.type === "launchagent") {
                             return (
-                              <span className={`text-xs px-2 py-1 rounded font-medium ${task.enabled ? styles.ok : styles.disabled}`}>
+                              <span
+                                className={`text-xs px-2 py-1 rounded font-medium ${task.enabled ? (styles.ok.className ?? "") : (styles.disabled.className ?? "")}`}
+                                style={task.enabled ? styles.ok.style : styles.disabled.style}
+                              >
                                 {task.enabled ? "Running" : "Stopped"}
                               </span>
                             );
                           }
+                          const resolvedStyle = styles[status] || styles.idle;
                           return (
                             <span
-                              className={`text-xs px-2 py-1 rounded font-medium ${styles[status] || styles.idle}`}
+                              className={`text-xs px-2 py-1 rounded font-medium ${resolvedStyle.className ?? ""}`}
+                              style={resolvedStyle.style}
                               title={task.lastError || undefined}
                             >
                               {labels[status] || status}
@@ -315,8 +334,8 @@ export default function ScheduledPage() {
                               className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted transition-colors disabled:opacity-50"
                             >
                               {state === "running" && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-                              {state === "ok"      && <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />}
-                              {state === "error"   && <XCircle className="h-3.5 w-3.5 text-red-500" />}
+                              {state === "ok"      && <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--theme-accent)" }} />}
+                              {state === "error"   && <XCircle className="h-3.5 w-3.5" style={{ color: "var(--theme-accent)", opacity: 0.5 }} />}
                               {state === "idle"    && <Play className="h-3.5 w-3.5 text-muted-foreground" />}
                             </button>
                           );

@@ -266,7 +266,7 @@ function ChannelBreakdown({
             Cron runs
           </p>
           <div className="flex gap-4 text-xs">
-            <span className="text-green-600 dark:text-green-400 tabular-nums">
+            <span className="tabular-nums" style={{ color: "var(--theme-accent)" }}>
               ✓ {cron.success} ok
             </span>
             {cron.fail > 0 && onCronFailClick ? (
@@ -474,7 +474,7 @@ function ErrorLog({
               </button>
             )}
             {allErrors.length === 0 && (
-              <span className="text-green-600 dark:text-green-400">All clear</span>
+              <span style={{ color: "var(--theme-accent)" }}>All clear</span>
             )}
           </div>
         </CardHeader>
@@ -502,7 +502,7 @@ function ErrorLog({
                 label="Warnings"
                 active={levelFilter === "warn"}
                 count={totalWarn}
-                countStyle={{ color: "#d97706" }}
+                countStyle={{ color: "var(--theme-accent)", opacity: 0.7 }}
                 onClick={() => setLevel("warn")}
               />
             </div>
@@ -565,13 +565,17 @@ function ErrorLog({
                     onClick={() => setExpandedKey(isExpanded ? null : key)}
                   >
                     <div className="flex items-start gap-2.5 min-w-0">
-                      {/* Level badge — errors use accent color, warnings use amber */}
+                      {/* Level badge — both levels use accent with opacity tiers */}
                       <span
-                        className={`mt-0.5 shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide${!isErr ? " bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : ""}`}
+                        className="mt-0.5 shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
                         style={isErr ? {
-                          backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
+                          backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
                           color: "var(--theme-accent)",
-                        } : undefined}
+                        } : {
+                          backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+                          color: "var(--theme-accent)",
+                          opacity: 0.7,
+                        }}
                       >
                         {isErr ? "ERR" : "WARN"}
                       </span>

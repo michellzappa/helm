@@ -20,10 +20,27 @@ const CATEGORY_ICON: Record<string, React.ElementType> = {
   Credentials:  KeyRound,
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  ok:      "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
-  empty:   "bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300",
-  missing: "bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300",
+const STATUS_STYLE: Record<string, { className?: string; style?: React.CSSProperties }> = {
+  ok: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
+  empty: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.5,
+    },
+  },
+  missing: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.5,
+    },
+  },
 };
 const STATUS_LABEL: Record<string, string> = {
   ok:      "Connected",
@@ -182,7 +199,10 @@ export default function CredentialsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <span className={`text-xs font-medium px-2 py-1 rounded ${STATUS_STYLE[cred.status]}`}>
+                          <span
+                            className={`text-xs font-medium px-2 py-1 rounded ${STATUS_STYLE[cred.status]?.className ?? ""}`}
+                            style={STATUS_STYLE[cred.status]?.style}
+                          >
                             {STATUS_LABEL[cred.status]}
                           </span>
                         </TableCell>

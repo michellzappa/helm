@@ -16,11 +16,28 @@ function ChannelIcon({ id }: { id: string }) {
   return <Radio className={cls} />;
 }
 
-const POLICY_COLORS: Record<string, string> = {
-  allowlist: "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
-  pairing: "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200",
-  deny: "bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300",
-  allow: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+const POLICY_COLORS: Record<string, { className?: string; style?: React.CSSProperties }> = {
+  allowlist: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+      color: "var(--theme-accent)",
+    },
+  },
+  pairing: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.7,
+    },
+  },
+  deny: {
+    style: {
+      backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+      color: "var(--theme-accent)",
+      opacity: 0.5,
+    },
+  },
+  allow: { className: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400" },
 };
 
 export default function ChannelsPage() {
@@ -199,26 +216,48 @@ export default function ChannelsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
+                            {(() => {
+                              const statusStyle = ch.enabled
+                                ? {
+                                    backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+                                    color: "var(--theme-accent)",
+                                    opacity: 0.7,
+                                  }
+                                : {
+                                    backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+                                    color: "var(--theme-accent)",
+                                    opacity: 0.5,
+                                  };
+                              return (
                             <span
-                              className={`text-xs font-medium px-2 py-1 rounded ${
-                                ch.enabled
-                                  ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                                  : "bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300"
-                              }`}
+                              className="text-xs font-medium px-2 py-1 rounded"
+                              style={statusStyle}
                             >
                               {ch.enabled ? "Enabled" : "Disabled"}
                             </span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${POLICY_COLORS[ch.dmPolicy] ?? POLICY_COLORS.allow}`}>
+                            {(() => {
+                              const policy = POLICY_COLORS[ch.dmPolicy] ?? POLICY_COLORS.allow;
+                              return (
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded ${policy.className ?? ""}`} style={policy.style}>
                               {ch.dmPolicy}
                             </span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell>
                             {ch.groupPolicy ? (
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded ${POLICY_COLORS[ch.groupPolicy] ?? POLICY_COLORS.allow}`}>
+                              (() => {
+                                const policy = POLICY_COLORS[ch.groupPolicy] ?? POLICY_COLORS.allow;
+                                return (
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded ${policy.className ?? ""}`} style={policy.style}>
                                 {ch.groupPolicy}
                               </span>
+                                );
+                              })()
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}

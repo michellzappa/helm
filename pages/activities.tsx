@@ -269,7 +269,7 @@ export default function ActivitiesPage() {
                         <div className="inline-flex items-center gap-2 text-xs">
                           <Icon
                             className="h-4 w-4"
-                            style={{ color: activity.status === "error" ? "#ef4444" : accent }}
+                            style={{ color: activity.status === "error" ? "var(--theme-accent)" : accent, opacity: activity.status === "error" ? 0.5 : 1 }}
                           />
                           {TYPE_LABELS[activity.type]}
                         </div>
@@ -327,7 +327,14 @@ export default function ActivitiesPage() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {activity.status === "error" ? (
-                          <span className="px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200">
+                          <span
+                            className="px-2 py-0.5 rounded-full"
+                            style={{
+                              backgroundColor: "color-mix(in srgb, var(--theme-accent) 8%, transparent)",
+                              color: "var(--theme-accent)",
+                              opacity: 0.5,
+                            }}
+                          >
                             error
                           </span>
                         ) : (
