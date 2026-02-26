@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
   Droplets, Wind, Network, ArrowUpRight, ArrowDownRight, AlertTriangle, Circle,
-  Bot, Radio, Euro, KeyRound, Calendar, Brain, Send, Cpu, Server, History, Zap, FolderOpen, Activity, Monitor, MessageSquare,
+  Bot, Radio, Euro, KeyRound, Calendar, Brain, Send, Cpu, Server, History, Zap, FolderOpen, Activity, Monitor, MessageSquare, Clock,
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { useCachedRefresh } from "@/lib/cache-refresh";
@@ -22,6 +22,7 @@ import type { ChannelsHealthData } from "./api/channels-health";
 import type { CostHistoryData } from "./api/cost-history";
 import type { CredentialsSummary } from "./api/credentials-summary";
 import type { MemoryActivityData } from "./api/memory-activity";
+import type { ActivityData } from "./api/activity";
 import type { MessagesSummary } from "./api/messages-summary";
 import type { ModelUsage } from "./api/model-usage";
 import type { PairedNode } from "./api/nodes";
@@ -1101,13 +1102,181 @@ function WorkspacesOverviewCard() {
   );
 }
 
+// ── Activity Widgets (from ActivityCharts) ────────────────────────────────
+
+function ActivityCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<ActivityData>({
+    cacheKey: "activity",
+    fetcher: async () => {
+      const r = await fetch("/api/activity");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
+  });
+  const activity = mounted ? data : null;
+  const daily = activity?.daily || [];
+  const maxVal = Math.max(...daily.map(d => d.user + d.system), 1);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">Activity</CardTitle>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Last 30 days</p>
+          </div>
+          <WidgetIcon icon={Activity} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-px h-16">
+          {daily.map((day: { date: string; user: number; system: number }) => {
+            const total = day.user + day.system;
+            const heightPct = total > 0 ? Math.max((total / maxVal) * 100, 4) : 0;
+            return (
+              <div
+                key={day.date}
+                className="flex-1 flex flex-col rounded-sm overflow-hidden"
+                style={{ height: total === 0 ? "3px" : `${heightPct}%` }}
+              >
+                {total > 0 && (
+                  <>
+                    <div style={{ height: `${(day.user / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.85, minHeight: day.user > 0 ? 1 : 0 }} />
+                    <div style={{ height: `${(day.system / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.2, minHeight: day.system > 0 ? 1 : 0 }} />
+                  </>
+                )}
+                {total === 0 && <div style={{ backgroundColor: "var(--theme-accent)", opacity: 0.08, height: "100%" }} />}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between mt-1.5 text-[9px] text-muted-foreground/50">
+          {daily.length > 0 && [0, Math.floor(daily.length / 2), daily.length - 1].map(i => (
+            <span key={i}>{new Date(daily[i]?.date + "T12:00:00").toLocaleDateString("en", { month: "short", day: "numeric" })}</span>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActiveHoursCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<ActivityData>({
+    cacheKey: "activity",
+    fetcher: async () => {
+      const r = await fetch("/api/activity");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
+  });
+  const activity = mounted ? data : null;
+  const hourly = activity?.hourly || new Array(24).fill(0);
+  const maxH = Math.max(...hourly, 1);
+  const peakHour = hourly.indexOf(Math.max(...hourly));
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">Active Hours</CardTitle>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {hourly.some((h: number) => h > 0) ? `Peak at ${peakHour.toString().padStart(2, "0")}:00` : "No data"}
+            </p>
+          </div>
+          <WidgetIcon icon={Clock} />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-end gap-px h-14">
+          {hourly.map((count: number, h: number) => {
+            const opacity = count > 0 ? 0.25 + 0.75 * (count / maxH) : 0.07;
+            return (
+              <div
+                key={h}
+                title={`${h.toString().padStart(2, "0")}:00 — ${count} events`}
+                className="flex-1 rounded-sm"
+                style={{
+                  height: count > 0 ? `${Math.max((count / maxH) * 100, 4)}%` : "2px",
+                  backgroundColor: "var(--theme-accent)",
+                  opacity,
+                }}
+              />
+            );
+          })}
+        </div>
+        <div className="flex justify-between mt-1.5 text-[9px] text-muted-foreground/50">
+          {["00", "06", "12", "18", "23"].map(h => <span key={h}>{h}</span>)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChannelsCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data } = useCachedRefresh<ActivityData>({
+    cacheKey: "activity",
+    fetcher: async () => {
+      const r = await fetch("/api/activity");
+      const d = await r.json();
+      return d.error ? null : d;
+    },
+  });
+  const activity = mounted ? data : null;
+  const channels = activity?.channels || [];
+  const maxCount = Math.max(...channels.map((c: { count: number }) => c.count), 1);
+  const cron = activity?.cron || { success: 0, fail: 0 };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-sm font-medium">
+              <Link href="/channels" className="hover:underline">Channels</Link>
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Last 30 days</p>
+          </div>
+          <WidgetIcon icon={Radio} />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {channels.slice(0, 3).map((ch: { name: string; label: string; count: number }) => (
+          <div key={ch.name} className="space-y-0.5">
+            <div className="flex justify-between text-[10px]">
+              <span className="font-medium">{ch.label}</span>
+              <span className="text-muted-foreground tabular-nums">{ch.count}</span>
+            </div>
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${(ch.count / maxCount) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.8 }} />
+            </div>
+          </div>
+        ))}
+        {channels.length === 0 && <div className="h-8 rounded bg-muted animate-pulse" />}
+        <div className="pt-2 border-t border-border flex gap-3 text-[10px]">
+          <span className="tabular-nums opacity-80">✓ {cron.success} ok</span>
+          <span className="tabular-nums" style={{ color: cron.fail > 0 ? "var(--theme-accent)" : undefined, opacity: cron.fail > 0 ? 1 : 0.5 }}>✗ {cron.fail} failed</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const { settings } = useSettings();
   const cards = [
     { key: "quick-agents", visible: true, node: <QuickAgentsCard /> },
-    { key: "channels-health", visible: true, node: <ChannelsHealthCard /> },
+    { key: "activities", visible: true, node: <ActivitiesCard /> },
+    { key: "active-hours", visible: true, node: <ActiveHoursCard /> },
+    { key: "channels", visible: true, node: <ChannelsCard /> },
     { key: "today-spend", visible: true, node: <TodaySpendCard /> },
     { key: "credentials-status", visible: true, node: <CredentialsStatusCard /> },
     { key: "memory-activity", visible: true, node: <MemoryActivityCard /> },
@@ -1139,7 +1308,7 @@ export default function Dashboard() {
 
         {/* Dense masonry dashboard cards */}
         {cards.length > 0 ? (
-          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 3xl:columns-6 gap-4 space-y-4">
             {cards.map(card => (
               <div key={card.key} className="break-inside-avoid mb-4">{card.node}</div>
             ))}
