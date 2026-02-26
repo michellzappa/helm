@@ -6,13 +6,24 @@ import { ActivityCharts } from "@/components/ActivityCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
-  Droplets, Wind, Network,
+  Droplets, Wind, Network, ArrowUpRight, ArrowDownRight, AlertTriangle, Circle,
 } from "lucide-react";
 import { useAutoRefresh, useSettings } from "@/lib/settings-context";
 import { cn } from "@/lib/utils";
 import type { SystemMetrics } from "./api/system";
 import type { WeatherData } from "./api/weather";
 import type { TailscaleData } from "./api/tailscale";
+import type { OcAgent } from "./api/oc-agents";
+import type { AgentsSummary } from "./api/agents-summary";
+import type { ChannelsHealthData } from "./api/channels-health";
+import type { CostHistoryData } from "./api/cost-history";
+import type { CredentialsSummary } from "./api/credentials-summary";
+import type { MemoryActivityData } from "./api/memory-activity";
+import type { MessagesSummary } from "./api/messages-summary";
+import type { ModelUsage } from "./api/model-usage";
+import type { PairedNode } from "./api/nodes";
+import type { SessionsData } from "./api/sessions";
+import type { WorkspaceSize } from "./api/workspace-sizes";
 
 interface ActivitiesResponse {
   total: number;
@@ -442,11 +453,548 @@ function UpcomingCronsCard() {
   );
 }
 
+function MiniSparkline({ values }: { values: number[] }) {
+  if (!values.length) return <div className="h-8 rounded bg-muted" />;
+  const width = 120;
+  const height = 28;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = Math.max(max - min, 1);
+  const points = values
+    .map((v, i) => {
+      const x = (i / Math.max(values.length - 1, 1)) * width;
+      const y = height - ((v - min) / range) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-8 w-full">
+      <polyline
+        fill="none"
+        stroke="var(--theme-accent)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
+}
+
+function healthColor(pct: number) {
+  if (pct >= 80) return "#22c55e";
+  if (pct >= 60) return "#84cc16";
+  if (pct >= 40) return "#f59e0b";
+  return "#ef4444";
+}
+
+function QuickAgentsCard() {
+  const [agents, setAgents] = useState<OcAgent[]>([]);
+  const [summary, setSummary] = useState<AgentsSummary | null>(null);
+
+  useAutoRefresh(() => {
+    Promise.all([
+      fetch("/api/oc-agents").then((r) => r.json() as Promise<OcAgent[] | { error: string }>),
+      fetch("/api/agents-summary").then((r) => r.json() as Promise<AgentsSummary | { error: string }>),
+    ])
+      .then(([a, s]) => {
+        if (Array.isArray(a)) setAgents(a);
+        if (!("error" in s)) setSummary(s);
+      })
+      .catch(() => {});
+  });
+
+  const defaultId = summary?.defaultAgent ?? "main";
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Quick Agents</CardTitle>
+          {summary && summary.recentErrors > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 tabular-nums">
+              {summary.recentErrors} err
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex flex-wrap gap-1.5">
+          {agents.map((agent) => (
+            <span
+              key={agent.id}
+              title={`${agent.name}${agent.id === defaultId ? " (default)" : ""}`}
+              className={cn(
+                "h-3 w-3 rounded-full border",
+                agent.id === defaultId ? "ring-2 ring-offset-1 ring-[var(--theme-accent)]" : "opacity-80"
+              )}
+              style={{ backgroundColor: agent.sessionCount > 0 ? "#22c55e" : "#6b7280", borderColor: "transparent" }}
+            />
+          ))}
+          {agents.length === 0 && <div className="h-3 w-20 rounded bg-muted animate-pulse" />}
+        </div>
+        <p className="text-[11px] text-muted-foreground tabular-nums">
+          {agents.length} agents · default {defaultId}
+        </p>
+        <Link href="/agents" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open agents →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ChannelsHealthCard() {
+  const [data, setData] = useState<ChannelsHealthData | null>(null);
+
+  useAutoRefresh(() => {
+    fetch("/api/channels-health")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setData(d);
+      })
+      .catch(() => {});
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Channels Health</CardTitle>
+          <span className="text-xs tabular-nums">{data ? `${data.overallPct}%` : "…"}</span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="h-3 rounded-md overflow-hidden flex bg-muted">
+          {(data?.channels ?? []).map((channel) => (
+            <div
+              key={channel.id}
+              title={`${channel.name}: ${channel.healthPct}%`}
+              className="h-full"
+              style={{ width: `${100 / Math.max((data?.channels.length ?? 1), 1)}%`, backgroundColor: healthColor(channel.healthPct) }}
+            />
+          ))}
+          {!data && <div className="h-full w-full animate-pulse bg-muted" />}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          {(data?.channels.length ?? 0)} channels monitored
+        </p>
+        <Link href="/channels" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open channels →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TodaySpendCard() {
+  const [data, setData] = useState<CostHistoryData | null>(null);
+
+  useAutoRefresh(() => {
+    fetch("/api/cost-history")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setData(d);
+      })
+      .catch(() => {});
+  });
+
+  const daily = data?.daily ?? [];
+  const points = daily.slice(-14).map((d) => d.cost);
+  const today = data?.summary.today ?? 0;
+  const yesterday = daily.length > 1 ? daily[daily.length - 2].cost : 0;
+  const delta = today - yesterday;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Today Spend</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        <div className="flex items-end justify-between">
+          <p className="text-3xl leading-none font-bold tabular-nums">${today.toFixed(2)}</p>
+          <span className={cn("text-xs inline-flex items-center gap-0.5 tabular-nums", delta >= 0 ? "text-red-500" : "text-green-600")}>
+            {delta >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+            {Math.abs(delta).toFixed(2)}
+          </span>
+        </div>
+        <MiniSparkline values={points} />
+        <Link href="/costs" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open costs →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CredentialsStatusCard() {
+  const [data, setData] = useState<CredentialsSummary | null>(null);
+
+  useAutoRefresh(() => {
+    fetch("/api/credentials-summary")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setData(d);
+      })
+      .catch(() => {});
+  });
+
+  const total = Math.max(data?.total ?? 0, 1);
+  const valid = data?.valid ?? 0;
+  const expired = data?.expired ?? 0;
+  const expiring = data?.expiringSoon ?? 0;
+  const validPct = Math.round((valid / total) * 100);
+  const expiredPct = Math.round((expired / total) * 100);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Credentials</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div
+            className="h-14 w-14 rounded-full"
+            style={{
+              background: `conic-gradient(#22c55e 0 ${validPct}%, #ef4444 ${validPct}% ${validPct + expiredPct}%, #eab308 ${validPct + expiredPct}% 100%)`,
+            }}
+          >
+            <div className="h-full w-full scale-[0.62] rounded-full bg-card" />
+          </div>
+          <div className="text-xs space-y-0.5">
+            <p className="tabular-nums"><span className="text-foreground font-medium">{valid}</span> valid</p>
+            <p className="tabular-nums"><span className="text-foreground font-medium">{expired}</span> expired</p>
+            <p className="tabular-nums"><span className="text-foreground font-medium">{expiring}</span> soon</p>
+          </div>
+        </div>
+        <Link href="/credentials" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open credentials →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MemoryActivityCard() {
+  const [data, setData] = useState<MemoryActivityData | null>(null);
+
+  useAutoRefresh(() => {
+    fetch("/api/memory-activity")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setData(d);
+      })
+      .catch(() => {});
+  });
+
+  const maxEdits = Math.max(...(data?.timeline.map((p) => p.edits) ?? [1]), 1);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Memory Activity</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="h-10 flex items-end gap-1">
+          {(data?.timeline ?? []).map((point) => (
+            <div
+              key={point.day}
+              title={`${point.day}: ${point.edits}`}
+              className="flex-1 rounded-sm"
+              style={{ height: `${Math.max(10, (point.edits / maxEdits) * 100)}%`, backgroundColor: "var(--theme-accent)", opacity: 0.75 }}
+            />
+          ))}
+          {!data && <div className="h-full w-full rounded bg-muted animate-pulse" />}
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {(data?.recentTopics ?? []).slice(0, 5).map((topic) => (
+            <span key={topic} className="text-[10px] px-1.5 py-0.5 rounded bg-muted max-w-[8rem] truncate">{topic}</span>
+          ))}
+        </div>
+        <Link href="/memory" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open memory →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MessageQueueCard() {
+  const [data, setData] = useState<MessagesSummary | null>(null);
+
+  useAutoRefresh(() => {
+    fetch("/api/messages-summary")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setData(d);
+      })
+      .catch(() => {});
+  });
+
+  const queued = data?.queued ?? 0;
+  const stuck = data?.stuck ?? 0;
+  const pct = Math.min(100, (queued / 25) * 100);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium">Message Queue</CardTitle>
+          {stuck > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 inline-flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" /> {stuck}
+            </span>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="h-3 rounded bg-muted overflow-hidden">
+          <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: queued > 15 ? "#f59e0b" : "var(--theme-accent)" }} />
+        </div>
+        <p className="text-xs text-muted-foreground tabular-nums">{queued} queued</p>
+        <Link href="/messages" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open queue →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActiveModelsCard() {
+  const [models, setModels] = useState<ModelUsage[]>([]);
+
+  useAutoRefresh(() => {
+    fetch("/api/model-usage")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setModels(d);
+      })
+      .catch(() => {});
+  });
+
+  const top = models
+    .map((model) => ({ id: model.modelId, count: model.jobs.length }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+  const max = Math.max(...top.map((m) => m.count), 1);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Active Models</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {top.map((model) => (
+          <div key={model.id} className="space-y-0.5">
+            <div className="text-[10px] text-muted-foreground truncate">{model.id}</div>
+            <div className="h-1.5 rounded bg-muted overflow-hidden">
+              <div className="h-full" style={{ width: `${(model.count / max) * 100}%`, backgroundColor: "var(--theme-accent)" }} />
+            </div>
+          </div>
+        ))}
+        {top.length === 0 && <div className="h-10 rounded bg-muted animate-pulse" />}
+        <Link href="/models" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open models →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ConnectedNodesCard() {
+  const [nodes, setNodes] = useState<PairedNode[]>([]);
+
+  useAutoRefresh(() => {
+    fetch("/api/nodes")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setNodes(d);
+      })
+      .catch(() => {});
+  });
+
+  const now = Date.now();
+  const statuses = nodes.map((node) => {
+    const age = now - node.lastUsedAtMs;
+    if (age < 15 * 60 * 1000) return "active";
+    if (age < 6 * 60 * 60 * 1000) return "idle";
+    return "offline";
+  });
+  const active = statuses.filter((s) => s === "active").length;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Connected Nodes</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="grid grid-cols-8 gap-1">
+          {statuses.slice(0, 24).map((status, i) => (
+            <Circle
+              key={i}
+              className="h-2.5 w-2.5 fill-current"
+              style={{ color: status === "active" ? "#22c55e" : status === "idle" ? "#eab308" : "#6b7280" }}
+            />
+          ))}
+          {statuses.length === 0 && <div className="col-span-8 h-4 rounded bg-muted animate-pulse" />}
+        </div>
+        <p className="text-xs text-muted-foreground tabular-nums">{active}/{nodes.length} active now</p>
+        <Link href="/nodes" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open nodes →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActiveSessionsCard() {
+  const [data, setData] = useState<SessionsData | null>(null);
+  const [cost, setCost] = useState<CostHistoryData | null>(null);
+
+  useAutoRefresh(() => {
+    Promise.all([
+      fetch("/api/sessions").then((r) => r.json() as Promise<SessionsData | { error: string }>),
+      fetch("/api/cost-history").then((r) => r.json() as Promise<CostHistoryData | { error: string }>),
+    ])
+      .then(([s, c]) => {
+        if (!("error" in s)) setData(s);
+        if (!("error" in c)) setCost(c);
+      })
+      .catch(() => {});
+  });
+
+  const sessions = data?.sessions ?? [];
+  const now = Date.now();
+  const active = sessions.filter((s) => now - s.updatedAt < 30 * 60 * 1000).length;
+  const idle = Math.max(0, sessions.length - active);
+  const total = Math.max(sessions.length, 1);
+  const points = (cost?.daily ?? []).slice(-7).map((d) => d.cost);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-2xl font-bold tabular-nums">{sessions.length}</p>
+        <div className="h-2 rounded bg-muted overflow-hidden flex">
+          <div className="h-full bg-emerald-500" style={{ width: `${(active / total) * 100}%` }} />
+          <div className="h-full bg-zinc-500" style={{ width: `${(idle / total) * 100}%` }} />
+        </div>
+        <p className="text-[11px] text-muted-foreground tabular-nums">{active} active · {idle} idle</p>
+        <MiniSparkline values={points} />
+        <Link href="/sessions" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open sessions →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SkillsQuickAccessCard() {
+  const [skills, setSkills] = useState<Array<{ location: "workspace" | "extension" | "global" }>>([]);
+
+  useAutoRefresh(() => {
+    fetch("/api/skills")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setSkills(d);
+      })
+      .catch(() => {});
+  });
+
+  const counts = {
+    workspace: skills.filter((s) => s.location === "workspace").length,
+    extension: skills.filter((s) => s.location === "extension").length,
+    global: skills.filter((s) => s.location === "global").length,
+  };
+  const total = Math.max(counts.workspace + counts.extension + counts.global, 1);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Skills Quick Access</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="h-3 rounded bg-muted overflow-hidden flex">
+          <div className="h-full bg-sky-500" style={{ width: `${(counts.workspace / total) * 100}%` }} />
+          <div className="h-full bg-amber-500" style={{ width: `${(counts.extension / total) * 100}%` }} />
+          <div className="h-full bg-zinc-500" style={{ width: `${(counts.global / total) * 100}%` }} />
+        </div>
+        <p className="text-[11px] text-muted-foreground tabular-nums">
+          W {counts.workspace} · E {counts.extension} · G {counts.global}
+        </p>
+        <Link href="/skills" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open skills →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
+function fmtSize(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(0)} MB`;
+  return `${Math.round(bytes / 1e3)} KB`;
+}
+
+function WorkspacesOverviewCard() {
+  const [sizes, setSizes] = useState<WorkspaceSize[]>([]);
+
+  useAutoRefresh(() => {
+    fetch("/api/workspace-sizes")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) setSizes(d);
+      })
+      .catch(() => {});
+  });
+
+  const top = sizes.slice(0, 4);
+  const max = Math.max(...top.map((s) => s.sizeBytes), 1);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Workspaces</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {top.map((ws) => (
+          <div key={ws.id} className="space-y-0.5">
+            <div className="flex justify-between text-[10px]">
+              <span className="truncate max-w-[60%]">{ws.id}</span>
+              <span className="text-muted-foreground tabular-nums">{fmtSize(ws.sizeBytes)}</span>
+            </div>
+            <div className="h-1.5 rounded bg-muted overflow-hidden">
+              <div className="h-full" style={{ width: `${(ws.sizeBytes / max) * 100}%`, backgroundColor: "var(--theme-accent)" }} />
+            </div>
+          </div>
+        ))}
+        {top.length === 0 && <div className="h-12 rounded bg-muted animate-pulse" />}
+        <Link href="/workspaces" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
+          Open workspaces →
+        </Link>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const { settings } = useSettings();
   const cards = [
+    { key: "quick-agents", visible: true, node: <QuickAgentsCard /> },
+    { key: "channels-health", visible: true, node: <ChannelsHealthCard /> },
+    { key: "today-spend", visible: true, node: <TodaySpendCard /> },
+    { key: "credentials-status", visible: true, node: <CredentialsStatusCard /> },
+    { key: "memory-activity", visible: true, node: <MemoryActivityCard /> },
+    { key: "message-queue", visible: true, node: <MessageQueueCard /> },
+    { key: "active-models", visible: true, node: <ActiveModelsCard /> },
+    { key: "connected-nodes", visible: true, node: <ConnectedNodesCard /> },
+    { key: "active-sessions", visible: true, node: <ActiveSessionsCard /> },
+    { key: "skills-quick-access", visible: true, node: <SkillsQuickAccessCard /> },
+    { key: "workspaces-overview", visible: true, node: <WorkspacesOverviewCard /> },
     { key: "weather", visible: settings.dashboardCards.weather, node: <WeatherCard /> },
     { key: "system", visible: settings.dashboardCards.system, node: <SystemCard /> },
     { key: "tailscale", visible: settings.dashboardCards.tailscale, node: <TailscaleCard /> },
