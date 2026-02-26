@@ -402,7 +402,17 @@ async function collectActivities(since: number): Promise<Activity[]> {
   return activities;
 }
 
+import { DEMO_MODE } from "../../lib/demo";
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (DEMO_MODE) {
+    const type = String(req.query.type ?? "");
+    const totals: Record<string, number> = {
+      "": 1356, "tool_call": 711, "user_message,assistant_message": 587, "cron_run": 15,
+    };
+    return res.status(200).json({ activities: [], total: totals[type] ?? 100 });
+  }
+
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
     return;

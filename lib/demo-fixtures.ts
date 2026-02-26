@@ -91,15 +91,15 @@ export const modelUsage = [
   {
     modelId: "anthropic/claude-haiku-4-5",
     jobs: [
-      { jobId: "cron-a1b2", jobName: "Gmail → Things Inbox (hourly)", modelRef: "haiku" },
-      { jobId: "cron-c3d4", jobName: "Social listening", modelRef: "haiku" },
-      { jobId: "cron-e5f6", jobName: "Post-meeting task extraction", modelRef: "haiku" },
+      { jobId: "cron-a1b2", jobName: "Email Inbox Processor", modelRef: "haiku" },
+      { jobId: "cron-c3d4", jobName: "Social Monitor", modelRef: "haiku" },
+      { jobId: "cron-e5f6", jobName: "Meeting Notes Extractor", modelRef: "haiku" },
     ],
   },
   {
     modelId: "anthropic/claude-opus-4-6",
     jobs: [
-      { jobId: "cron-g7h8", jobName: "Evening summary", modelRef: "opus" },
+      { jobId: "cron-g7h8", jobName: "Daily Summary", modelRef: "opus" },
     ],
   },
 ];
@@ -163,7 +163,7 @@ export const costHistory = {
 // ── /api/workspace-sizes ────────────────────────────────────────────────────
 export const workspaceSizes = [
   { id: "workspace", path: "/home/user/.openclaw/workspace", sizeBytes: 737_280_000 },
-  { id: "workspace-casa", path: "/home/user/.openclaw/workspace-casa", sizeBytes: 60_416 },
+  { id: "workspace-2", path: "/home/user/.openclaw/workspace-2", sizeBytes: 60_416 },
 ];
 
 // ── /api/nodes ──────────────────────────────────────────────────────────────
@@ -177,11 +177,11 @@ export const nodes = [
 
 // ── /api/tailscale ──────────────────────────────────────────────────────────
 export const tailscale = {
-  self: { name: "server", ip: "100.64.0.1" },
+  self: { name: "gateway", ip: "100.64.0.1" },
   peers: [
-    { name: "laptop", ip: "100.64.0.2", online: true, active: true },
-    { name: "pi-zero", ip: "100.64.0.3", online: true, active: true },
-    { name: "phone", ip: "100.64.0.4", online: true, active: false },
+    { name: "desktop", ip: "100.64.0.2", online: true, active: true },
+    { name: "server-2", ip: "100.64.0.3", online: true, active: true },
+    { name: "mobile", ip: "100.64.0.4", online: true, active: false },
   ],
 };
 
@@ -191,22 +191,22 @@ export const system = {
   ram: { usedBytes: 12_800_000_000, totalBytes: 32_000_000_000, pct: 40 },
   disk: { usedBytes: 198_000_000_000, totalBytes: 500_000_000_000, pct: 39.6, mount: "/" },
   uptimeSeconds: 604_800,
-  hostname: "server.local",
+  hostname: "demo.local",
 };
 
 // ── /api/weather ────────────────────────────────────────────────────────────
 export const weather = {
-  location: "Amsterdam",
-  tempC: 16,
-  feelsLikeC: 13,
+  location: "Demo City",
+  tempC: 18,
+  feelsLikeC: 16,
   code: 2,
   desc: "Partly cloudy",
-  humidity: 63,
-  windKmph: 20,
+  humidity: 55,
+  windKmph: 12,
   forecast: [
-    { date: isoDate(NOW), code: 2, desc: "Partly cloudy", maxC: 16, minC: 10 },
-    { date: isoDate(NOW + DAY), code: 3, desc: "Overcast", maxC: 12, minC: 10 },
-    { date: isoDate(NOW + 2 * DAY), code: 1, desc: "Mainly clear", maxC: 11, minC: 7 },
+    { date: isoDate(NOW), code: 2, desc: "Partly cloudy", maxC: 18, minC: 12 },
+    { date: isoDate(NOW + DAY), code: 3, desc: "Overcast", maxC: 15, minC: 10 },
+    { date: isoDate(NOW + 2 * DAY), code: 1, desc: "Mainly clear", maxC: 14, minC: 8 },
   ],
 };
 
@@ -241,12 +241,12 @@ export const memoryActivity = {
     day: isoDate(daysAgo(6 - i)),
     edits: [2, 0, 3, 1, 4, 2, 5][i],
   })),
-  recentTopics: ["training-log", "project-notes", "weekly-review", "meeting-notes"],
+  recentTopics: ["docs", "notes", "review", "archive"],
   recentFiles: [
     { name: isoDate(NOW), mtimeMs: hoursAgo(1) },
-    { name: "training-log", mtimeMs: hoursAgo(6) },
+    { name: "docs", mtimeMs: hoursAgo(6) },
     { name: isoDate(daysAgo(1)), mtimeMs: daysAgo(1) },
-    { name: "project-notes", mtimeMs: daysAgo(2) },
+    { name: "notes", mtimeMs: daysAgo(2) },
   ],
 };
 
@@ -261,32 +261,44 @@ export const memorySummary = {
 
 // ── /api/scheduled-tasks ────────────────────────────────────────────────────
 export const scheduledTasks = [
-  { id: "job-001", name: "Gmail → Things Inbox (hourly)", type: "cron", schedule: "0 * * * *", enabled: true, nextRunAtMs: NOW + 10 * 60_000, lastRunAtMs: hoursAgo(0.5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-002", name: "Post-meeting task extraction (Granola)", type: "cron", schedule: "*/30 * * * *", enabled: true, nextRunAtMs: NOW + 25 * 60_000, lastRunAtMs: hoursAgo(0.3), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-003", name: "Social listening — Envisioning brand", type: "cron", schedule: "0 */2 * * *", enabled: true, nextRunAtMs: NOW + 55 * 60_000, lastRunAtMs: hoursAgo(1.5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-004", name: "OuraClaw Evening Summary", type: "cron", schedule: "0 21 * * *", enabled: true, nextRunAtMs: NOW + 6 * HOUR + 55 * 60_000, lastRunAtMs: daysAgo(1), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-001", name: "Email Inbox Processor (hourly)", type: "cron", schedule: "0 * * * *", enabled: true, nextRunAtMs: NOW + 10 * 60_000, lastRunAtMs: hoursAgo(0.5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-002", name: "Meeting Notes Extractor", type: "cron", schedule: "*/30 * * * *", enabled: true, nextRunAtMs: NOW + 25 * 60_000, lastRunAtMs: hoursAgo(0.3), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-003", name: "Social Media Monitor", type: "cron", schedule: "0 */2 * * *", enabled: true, nextRunAtMs: NOW + 55 * 60_000, lastRunAtMs: hoursAgo(1.5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-004", name: "Daily Health Summary", type: "cron", schedule: "0 21 * * *", enabled: true, nextRunAtMs: NOW + 6 * HOUR + 55 * 60_000, lastRunAtMs: daysAgo(1), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-005", name: "Daily backup", type: "cron", schedule: "0 3 * * *", enabled: true, nextRunAtMs: NOW + 12 * HOUR, lastRunAtMs: hoursAgo(10), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-006", name: "Tomorrow's calendar briefing", type: "cron", schedule: "0 22 * * *", enabled: true, nextRunAtMs: NOW + 8 * HOUR, lastRunAtMs: daysAgo(1), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-007", name: "Weekly SEO digest", type: "cron", schedule: "0 9 * * 1", enabled: true, nextRunAtMs: NOW + 4 * DAY, lastRunAtMs: daysAgo(3), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-008", name: "CRM stale pipeline check", type: "cron", schedule: "0 10 * * 1,4", enabled: true, nextRunAtMs: NOW + 2 * DAY, lastRunAtMs: daysAgo(2), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-009", name: "CRM expiring offers", type: "cron", schedule: "0 10 * * 2,5", enabled: true, nextRunAtMs: NOW + 1 * DAY, lastRunAtMs: daysAgo(1), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-010", name: "Nightly updates check", type: "cron", schedule: "0 2 * * *", enabled: true, nextRunAtMs: NOW + 11 * HOUR, lastRunAtMs: hoursAgo(11), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-011", name: "Decan daily", type: "cron", schedule: "30 8 * * *", enabled: true, nextRunAtMs: NOW + 18 * HOUR, lastRunAtMs: hoursAgo(5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-011", name: "Morning briefing", type: "cron", schedule: "30 8 * * *", enabled: true, nextRunAtMs: NOW + 18 * HOUR, lastRunAtMs: hoursAgo(5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-012", name: "Daily reflection", type: "cron", schedule: "0 23 * * *", enabled: true, nextRunAtMs: NOW + 9 * HOUR, lastRunAtMs: daysAgo(1), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-013", name: "Plausible weekly digest", type: "cron", schedule: "0 9 * * 1", enabled: true, nextRunAtMs: NOW + 4 * DAY, lastRunAtMs: daysAgo(5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-014", name: "Gym plan review", type: "cron", schedule: "0 7 * * 1", enabled: true, nextRunAtMs: NOW + 4 * DAY, lastRunAtMs: daysAgo(4), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-013", name: "Analytics weekly digest", type: "cron", schedule: "0 9 * * 1", enabled: true, nextRunAtMs: NOW + 4 * DAY, lastRunAtMs: daysAgo(5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-014", name: "Weekly planning review", type: "cron", schedule: "0 7 * * 1", enabled: true, nextRunAtMs: NOW + 4 * DAY, lastRunAtMs: daysAgo(4), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-015", name: "Newsletter draft (Sunday)", type: "cron", schedule: "0 15 * * 0", enabled: true, nextRunAtMs: NOW + 3 * DAY, lastRunAtMs: daysAgo(5), agent: "main", model: "anthropic/claude-opus-4-6", status: "ok" },
-  { id: "job-016", name: "GSC weekly report", type: "cron", schedule: "0 9 * * 2", enabled: true, nextRunAtMs: NOW + 5 * DAY, lastRunAtMs: daysAgo(5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
-  { id: "job-017", name: "Gumroad sales check", type: "cron", schedule: "0 10 * * *", enabled: true, nextRunAtMs: NOW + 20 * HOUR, lastRunAtMs: hoursAgo(4), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-016", name: "Search console report", type: "cron", schedule: "0 9 * * 2", enabled: true, nextRunAtMs: NOW + 5 * DAY, lastRunAtMs: daysAgo(5), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
+  { id: "job-017", name: "Store sales check", type: "cron", schedule: "0 10 * * *", enabled: true, nextRunAtMs: NOW + 20 * HOUR, lastRunAtMs: hoursAgo(4), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
   { id: "job-018", name: "Heartbeat", type: "cron", schedule: "*/30 * * * *", enabled: true, nextRunAtMs: NOW + 15 * 60_000, lastRunAtMs: hoursAgo(0.2), agent: "main", model: "anthropic/claude-haiku-4-5", status: "ok" },
 ];
 
 // ── /api/activity ───────────────────────────────────────────────────────────
 export const activity = {
-  toolCalls: 711,
-  messages: 587,
-  cronRuns: 15,
-  total: 1356,
+  daily: Array.from({ length: 30 }, (_, i) => ({
+    date: isoDate(daysAgo(29 - i)),
+    user: 30 + Math.round(Math.sin(i * 0.4) * 15) + (i > 25 ? 10 : 0),
+    system: 15 + Math.round(Math.cos(i * 0.3) * 8),
+  })),
+  hourly: [2,1,0,1,0,1,3,8,15,22,28,25,20,24,26,22,18,14,10,8,6,5,4,3],
+  channels: [
+    { name: "telegram", label: "Telegram", count: 320 },
+    { name: "discord", label: "Discord", count: 187 },
+    { name: "whatsapp", label: "WhatsApp", count: 80 },
+  ],
+  cron: { success: 14, fail: 1, total: 15 },
+  totalEvents: 1356,
+  logDays: 30,
+  logSource: "demo",
+  errors: [],
 };
 
 // ── /api/counts ─────────────────────────────────────────────────────────────
