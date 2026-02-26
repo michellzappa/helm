@@ -9,7 +9,7 @@ interface UseKeyboardNavProps {
   onOpenShortcuts?: () => void;
 }
 
-export function useKeyboardNav({ onOpenSettings, onCloseSettings, settingsOpen }: UseKeyboardNavProps) {
+export function useKeyboardNav({ onOpenSettings, onCloseSettings, settingsOpen, onOpenShortcuts }: UseKeyboardNavProps) {
   const router = useRouter();
 
   const navigate = useCallback((direction: "prev" | "next") => {
