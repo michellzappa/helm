@@ -313,13 +313,13 @@ export function SettingsModal({ open, onOpenChange, menuItems }: Props) {
         </div>
 
         {/* About */}
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">About</p>
+        <div className="space-y-4">
+          <SectionLabel>About</SectionLabel>
           <p className="text-xs text-muted-foreground">
             Helm is an observability dashboard for{" "}
             <a href="https://github.com/openclaw/openclaw" target="_blank" rel="noopener noreferrer" className="underline text-foreground hover:text-primary">OpenClaw</a>.
           </p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground">
             <a href="https://github.com/michellzappa/helm" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Source on GitHub</a>
           </p>
         </div>

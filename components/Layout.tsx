@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/command";
 import {
   LayoutDashboard, Brain, Calendar, History, Activity, Bot, Server, Zap,
-  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings, Euro,
+  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings, Euro, Heart,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -48,6 +48,7 @@ export const MENU_ITEMS: {
   { href: "/costs",          label: "Costs",          icon: Euro                                },
   { href: "/credentials",    label: "Credentials",    icon: KeyRound,    countKey: "credentials" },
   { href: "/crons",           label: "Crons",          icon: Calendar,    countKey: "scheduled"   },
+  { href: "/heartbeats",      label: "Heartbeats",     icon: Heart                           },
   { href: "/memory",         label: "Memory",         icon: Brain,       countKey: "memory"      },
   { href: "/messages",        label: "Messages",       icon: Send,        countKey: "deliveryQueue" },
   { href: "/models",         label: "Models",         icon: Cpu,         countKey: "models"      },

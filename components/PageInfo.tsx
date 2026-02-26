@@ -34,6 +34,8 @@ export const PAGE_INFO: Record<string, string> = {
     "Active and recent agent sessions with token usage and costs. Each conversation thread, cron run, or API call gets its own session.",
   skills:
     "Reusable instruction sets that teach agents how to use specific tools — Gmail, CRM, GitHub, smart home, etc. Custom skills live in your workspace; built-in ones ship with OpenClaw.",
+  heartbeats:
+    "Periodic health checks that monitor system state and run configured tasks. Heartbeats check if channels are healthy, run quick diagnostics, and trigger background automations.",
   workspaces:
     "Workspace directories where agents store their files — SOUL.md, MEMORY.md, skills, scripts, and project files. Each agent can have its own workspace.",
 };
