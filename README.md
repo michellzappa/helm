@@ -1,151 +1,80 @@
 # Helm
 
-**An observability dashboard for [OpenClaw](https://openclaw.ai) — see inside your agent, not just that it's running.**
+Observability dashboard for [OpenClaw](https://openclaw.ai).
 
 ![Helm Dashboard](public/screenshot.png)
 
----
+## What it does
 
-## Why this exists
+Helm reads directly from your `~/.openclaw/` workspace and shows real system state — sessions, costs, cron jobs, credentials, memory, skills, nodes, and more. No database, no auth, no stubs.
 
-OpenClaw ships with a gateway management UI. It's great for checking that the gateway is alive, viewing connected sessions, and tweaking configuration. But it doesn't answer the questions you actually have when running an AI agent day-to-day:
+## Pages
 
-- What's in my agent's memory right now?
-- Which skills are loaded — and which are disabled?
-- What cron jobs are scheduled, and when do they next fire?
-- Why is this message stuck in the delivery queue?
-- Which credentials are missing or broken?
-
-Helm is the UI that answers those questions. It reads directly from your OpenClaw workspace and gateway to show **real system state** — no demo data, no placeholders, no stubs. If your agent has 214 memories, you see 214. If a delivery queue message is stuck, you can see the error and remove it.
-
-Think of it as the difference between knowing your ship is running and actually standing at the helm.
-
----
+| Page | Shows |
+|------|-------|
+| **Dashboard** | 16 widget cards — weather, system, costs, agents, crons, sessions, nodes, Tailscale, channels, credentials, memory, models, skills, workspaces, activity, message queue |
+| **Activities** | Tool calls, messages, cron runs — 30-day histogram + hourly heatmap |
+| **Agents** | Configured agents, model bindings, session counts |
+| **Channels** | Telegram, WhatsApp, Discord — health, queue status |
+| **Costs** | Daily spend histogram, per-model breakdown, 30-day trend |
+| **Credentials** | API keys and tokens — valid / expired / expiring soon |
+| **Crons** | Scheduled jobs — next run, last status, agent, model |
+| **Heartbeats** | Agent heartbeat history and manual trigger |
+| **Memory** | All memory files with content viewer |
+| **Messages** | Delivery queue — stuck messages, errors |
+| **Models** | Configured LLMs with cron job usage linkage |
+| **Nodes** | Paired devices — last seen, platform, role |
+| **Sessions** | All sessions with token counts and cost (3 decimal EUR/USD) |
+| **Skills** | Workspace, extension, and global skills |
+| **Workspaces** | Agent workspaces and sizes |
 
 ## Features
 
-- **10 system views** — Agents, Channels, Credentials, Delivery Queue, Memory, Models, Nodes, Scheduled Jobs, Skills, Workspaces
-- **Real data only** — reads from `~/.openclaw/` filesystem and gateway API
-- **⌘K command palette** — jump anywhere instantly
-- **Theme colors** — 8 accent options, persisted to localStorage
-- **Dark mode** — follows OS preference
-- **Mobile-friendly** — collapsible sidebar, touch-optimized
-- **Actionable** — delete delivery queue messages, inspect memory entries, explore skill configs
-- **Extensible** — add your own pages under `pages/custom/`
-
-### Pages
-
-| Page | What it shows |
-|------|---------------|
-| **Dashboard** | Live count tiles for all sections |
-| **Agents** | Configured agents, bindings, session counts |
-| **Channels** | Telegram, WhatsApp, etc. — enabled status, group policies |
-| **Credentials** | API keys and token files — present / missing / empty |
-| **Delivery Queue** | Stuck outbound messages with error details; deletable |
-| **Memory** | All memory files with full content viewer |
-| **Models** | Configured LLMs with cost, speed, and usage linkage |
-| **Nodes** | Paired hardware nodes — last seen, platform, role |
-| **Scheduled** | Cron jobs + LaunchAgents — next run times, status |
-| **Skills** | All skills (custom / extension / built-in) with config detail |
-| **Workspaces** | Agent workspaces and their files |
-
----
-
-## Prerequisites
-
-- [OpenClaw](https://openclaw.ai) installed and running (`openclaw gateway start`)
-- Node.js 18+
-- [pnpm](https://pnpm.io) (`npm install -g pnpm`)
-
----
+- **⌘K command palette** — jump anywhere
+- **Keyboard navigation** — ← → between pages, ESC for settings, ? for shortcuts
+- **9 theme colors** (OKLCH) — persisted to localStorage
+- **Server-side cache** — in-memory with 2-min background warmer, sub-10ms API responses
+- **Client-side cache** — localStorage with 24h validity for dashboard widgets
+- **Demo mode** — `DEMO_MODE=1` returns PII-free fixture data for safe screenshots
+- **Sortable tables** with search filtering on all pages
+- **Tooltips** — (i) icon on every page header explaining what it shows
 
 ## Setup
 
 ```bash
-# 1. Clone
 git clone https://github.com/michellzappa/helm
 cd helm
-
-# 2. Install dependencies
 pnpm install
-
-# 3. Configure
 cp .env.local.example .env.local
-# Edit .env.local — set GATEWAY_URL and GATEWAY_TOKEN
-
-# 4. Run
 pnpm dev
 ```
 
-Open [http://localhost:1111](http://localhost:1111).
+Open [localhost:1111](http://localhost:1111).
 
-> **Finding your gateway token:** `cat ~/.openclaw/openclaw.json | grep token`
-
----
-
-## Configuration
-
-### `.env.local`
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GATEWAY_URL` | `http://127.0.0.1:18789` | OpenClaw gateway address |
-| `GATEWAY_TOKEN` | — | Gateway auth token (from `openclaw.json`) |
-| `WORKSPACE_PATH` | `~/.openclaw/workspace` | Path to your agent workspace |
-
-### `config/models.json`
-
-Edit this file to reflect the LLMs you actually use. The Models page reads from it — no database, no API. See the included file for the schema.
-
-### Custom pages
-
-Drop any `.tsx` file into `pages/custom/` — it'll be available at `/custom/your-page`. The `pages/custom/tasks.tsx` file included in the repo is a starting point.
-
----
-
-## Auto-start (macOS)
-
-To have Helm launch automatically at login:
+### Auto-start (macOS)
 
 ```bash
-# Copy and edit the example plist
 cp launchagent.example.plist ~/Library/LaunchAgents/com.yourname.helm.plist
-# Replace INSTALL_PATH with your actual path
-nano ~/Library/LaunchAgents/com.yourname.helm.plist
-
-# Load it
+# Edit the path, then:
 launchctl load ~/Library/LaunchAgents/com.yourname.helm.plist
 ```
 
-The default port is `1111`. Override with `MC_PORT=3000 pnpm dev` or set `MC_PORT` in the LaunchAgent's `EnvironmentVariables`.
-
----
-
 ## Stack
 
-- [Next.js](https://nextjs.org) 16 (Pages Router)
-- [shadcn/ui](https://ui.shadcn.com) components
-- [Tailwind CSS](https://tailwindcss.com) v4
-- [Lucide](https://lucide.dev) icons
-- [cmdk](https://cmdk.dev) for the command palette
-- [croner](https://github.com/Hexagon/croner) for next-run time calculation
+- Next.js 16 (Pages Router, Turbopack)
+- React 19
+- shadcn/ui + Tailwind CSS v4
+- Lucide icons
+- cmdk (command palette)
+- croner (cron schedule parsing)
+- Playwright (screenshots)
 
-Everything is stateless — no database, no auth, no build step needed beyond `pnpm dev`.
+No database. No auth. Reads from the filesystem.
 
----
+## Screenshot
 
-## Contributing
-
-PRs welcome. A few principles to keep in mind:
-
-- **No demo data.** Every page should show real system state or an honest empty state.
-- **No new dependencies** unless genuinely necessary — the stack is intentionally small.
-- **Pages are standalone** — each page + its API route(s) should be self-contained and not depend on other pages' logic.
-
-See `pages/memory.tsx` + `pages/api/memories.ts` as a reference implementation.
-
----
+`npm run screenshot` starts an ephemeral server with `DEMO_MODE=1` and captures a PII-free screenshot. Use `--live` for real data.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT
