@@ -482,8 +482,10 @@ function QuickAgentsCard() {
     },
   });
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const defaultId = summary?.defaultAgent ?? "main";
-  const displayAgents = agents || [];
+  const displayAgents = mounted ? (agents || []) : [];
 
   return (
     <Card className={isRefreshing ? "opacity-80" : ""}>
@@ -531,6 +533,8 @@ function QuickAgentsCard() {
 }
 
 function TodaySpendCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { settings } = useSettings();
   const { data, isRefreshing } = useCachedRefresh<CostHistoryData>({
     cacheKey: "cost-history",
@@ -541,7 +545,7 @@ function TodaySpendCard() {
       return d;
     },
   });
-  const displayData = data;
+  const displayData = mounted ? data : null;
 
   const daily = displayData?.daily ?? [];
   const points = daily.slice(-14).map((d) => d.cost);
