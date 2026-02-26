@@ -222,32 +222,6 @@ export function SettingsModal({ open, onOpenChange, menuItems }: Props) {
 
           <Divider />
 
-          <SectionLabel>Dashboard</SectionLabel>
-          <div className="rounded-lg border border-border bg-card px-4 divide-y divide-border">
-            <ToggleRow
-              label="Weather"
-              checked={settings.dashboardCards.weather}
-              onChange={v => setSetting("dashboardCards", { ...settings.dashboardCards, weather: v })}
-            />
-            <ToggleRow
-              label="System"
-              checked={settings.dashboardCards.system}
-              onChange={v => setSetting("dashboardCards", { ...settings.dashboardCards, system: v })}
-            />
-            <ToggleRow
-              label="Tailscale"
-              checked={settings.dashboardCards.tailscale}
-              onChange={v => setSetting("dashboardCards", { ...settings.dashboardCards, tailscale: v })}
-            />
-            <ToggleRow
-              label="Activity"
-              checked={settings.dashboardCards.activity}
-              onChange={v => setSetting("dashboardCards", { ...settings.dashboardCards, activity: v })}
-            />
-          </div>
-
-          <Divider />
-
           <SectionLabel>Formatting</SectionLabel>
           <div className="space-y-4">
             <div>
