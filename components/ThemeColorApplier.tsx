@@ -6,7 +6,7 @@ import { getThemeColor } from "@/lib/theme-colors";
 const HELM_SVG = (bg: string) => `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <rect width="100" height="100" rx="22" fill="${bg}"/>
-  <g transform="translate(50,50)" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(50,50)" fill="none" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="0" cy="0" r="28"/>
     <circle cx="0" cy="0" r="8"/>
     ${[0,45,90,135,180,225,270,315].map(a => {
