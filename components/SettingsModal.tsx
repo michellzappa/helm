@@ -317,14 +317,14 @@ export function SettingsModal({ open, onOpenChange, menuItems }: Props) {
         {/* About */}
         <div className="space-y-4">
           <SectionLabel>About</SectionLabel>
-          <div className="py-3 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Helm is an observability dashboard for{" "}
-              <a href="https://github.com/openclaw/openclaw" target="_blank" rel="noopener noreferrer" className="underline text-foreground hover:text-primary">OpenClaw</a>.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              <a href="https://github.com/michellzappa/helm" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">Source on GitHub</a>
-            </p>
+          <div className="rounded-lg border border-border bg-card px-4 divide-y divide-border">
+            <div className="py-3 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                Observability dashboard for{" "}
+                <a href="https://github.com/openclaw/openclaw" target="_blank" rel="noopener noreferrer" className="underline text-foreground hover:text-primary">OpenClaw</a>
+              </span>
+              <a href="https://github.com/michellzappa/helm" target="_blank" rel="noopener noreferrer" className="text-xs underline text-muted-foreground hover:text-primary">GitHub</a>
+            </div>
           </div>
         </div>
       </DialogContent>
