@@ -18,7 +18,7 @@ import type { WeatherData } from "./api/weather";
 import type { TailscaleData } from "./api/tailscale";
 import type { OcAgent } from "./api/oc-agents";
 import type { AgentsSummary } from "./api/agents-summary";
-import type { ChannelsHealthData } from "./api/channels-health";
+
 import type { CostHistoryData } from "./api/cost-history";
 import type { CredentialsSummary } from "./api/credentials-summary";
 import type { MemoryActivityData } from "./api/memory-activity";
@@ -350,62 +350,6 @@ function TailscaleCard() {
   );
 }
 
-function ActivitySummaryCard() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const { data } = useCachedRefresh<{
-    total: number;
-    toolCalls: number;
-    messages: number;
-    cronRuns: number;
-  }>({
-    cacheKey: "activity-summary",
-    fetcher: async () => {
-      const since = Date.now() - 24 * 60 * 60 * 1000;
-      const [all, tools, msgs, cron] = await Promise.all([
-        fetch(`/api/activities?since=${since}&limit=1`).then(r => r.json() as Promise<ActivitiesResponse>),
-        fetch(`/api/activities?since=${since}&limit=1&type=tool_call`).then(r => r.json() as Promise<ActivitiesResponse>),
-        fetch(`/api/activities?since=${since}&limit=1&type=user_message,assistant_message`).then(r => r.json() as Promise<ActivitiesResponse>),
-        fetch(`/api/activities?since=${since}&limit=1&type=cron_run`).then(r => r.json() as Promise<ActivitiesResponse>),
-      ]);
-      return {
-        total: all.total,
-        toolCalls: tools.total,
-        messages: msgs.total,
-        cronRuns: cron.total,
-      };
-    },
-  });
-  const summary = mounted ? data : null;
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <CardTitle className="text-sm font-medium">
-              <Link href="/activities" className="hover:underline">
-                24h Activity
-              </Link>
-            </CardTitle>
-          </div>
-          <WidgetIcon icon={Activity} />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-3xl font-bold tabular-nums">
-          {summary ? summary.total.toLocaleString() : "…"}
-        </p>
-        <div className="space-y-1 text-xs text-muted-foreground">
-          <p><span className="tabular-nums text-foreground">{summary?.toolCalls ?? "…"}</span> tool calls</p>
-          <p><span className="tabular-nums text-foreground">{summary?.messages ?? "…"}</span> messages</p>
-          <p><span className="tabular-nums text-foreground">{summary?.cronRuns ?? "…"}</span> cron runs</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function fmtRelativeNextRun(nextRunMs?: number) {
   if (!nextRunMs) return "—";
   const diffMs = nextRunMs - Date.now();
@@ -580,56 +524,6 @@ function QuickAgentsCard() {
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">
           {displayAgents.length} agents · default {defaultId}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ChannelsHealthCard() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const { data } = useCachedRefresh<ChannelsHealthData>({
-    cacheKey: "channels-health",
-    fetcher: async () => {
-      const r = await fetch("/api/channels-health");
-      const d = await r.json();
-      return d.error ? null : d;
-    },
-  });
-  const displayData = mounted ? data : null;
-
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <CardTitle className="text-sm font-medium">
-              <Link href="/channels" className="hover:underline">
-                Channels Health
-              </Link>
-            </CardTitle>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs tabular-nums">{displayData ? `${displayData.overallPct}%` : "…"}</span>
-            <WidgetIcon icon={Radio} />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="h-2 rounded-md overflow-hidden flex bg-muted">
-          {(displayData?.channels ?? []).map((channel) => (
-            <div
-              key={channel.id}
-              title={`${channel.name}: ${channel.healthPct}%`}
-              className="h-full"
-              style={{ width: `${100 / Math.max((displayData?.channels.length ?? 1), 1)}%`, backgroundColor: "var(--theme-accent)", opacity: Math.max(0.4, channel.healthPct / 100) }}
-            />
-          ))}
-          {!displayData && <div className="h-full w-full animate-pulse bg-muted" />}
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          {(displayData?.channels.length ?? 0)} channels monitored
         </p>
       </CardContent>
     </Card>
@@ -1289,7 +1183,7 @@ export default function Dashboard() {
     { key: "weather", visible: settings.dashboardCards.weather, node: <WeatherCard /> },
     { key: "system", visible: settings.dashboardCards.system, node: <SystemCard /> },
     { key: "tailscale", visible: settings.dashboardCards.tailscale, node: <TailscaleCard /> },
-    { key: "activity", visible: settings.dashboardCards.activity, node: <ActivitySummaryCard /> },
+
     { key: "upcoming-crons", visible: true, node: <UpcomingCronsCard /> },
   ].filter(card => card.visible);
 
