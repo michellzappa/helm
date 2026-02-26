@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CURRENCY_RATES, useAutoRefresh, useSettings } from "@/lib/settings-context";
@@ -52,6 +53,8 @@ export default function CostsPage() {
     }));
   }, [data?.byModel, currencyInfo.rate]);
 
+  const modelAccentOpacity = (index: number) => Math.max(0.35, 1 - index * 0.2);
+
   const costByKind = useMemo(() => {
     const rows = (data?.byKind ?? []).filter(x => x.cost > 0);
     const total = rows.reduce((sum, x) => sum + x.cost, 0);
@@ -76,9 +79,12 @@ export default function CostsPage() {
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Costs</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Costs</h1>
+              <PageInfo page="costs" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {loading ? "…" : `${fmtCost(convertCost(summary.allTime), currencyInfo.symbol)} total`}
+            {loading ? "…" : `${fmtCost(convertCost(summary.allTime), currencyInfo.symbol)} total · API-equivalent`}
           </p>
         </div>
 
@@ -126,7 +132,7 @@ export default function CostsPage() {
               {costByModel.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No model costs yet.</p>
               ) : (
-                costByModel.map(row => (
+                costByModel.map((row, index) => (
                   <div key={row.model} className="space-y-1">
                     <div className="flex justify-between gap-3 text-xs">
                       <span className="truncate font-medium" title={row.model}>{row.model}</span>
@@ -135,7 +141,7 @@ export default function CostsPage() {
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-300"
-                        style={{ width: `${row.share}%`, backgroundColor: accent }}
+                        style={{ width: `${row.share}%`, backgroundColor: accent, opacity: modelAccentOpacity(index) }}
                       />
                     </div>
                   </div>

@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { useState, useEffect } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -35,6 +37,7 @@ export default function CredentialsPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [filterQuery, setFilterQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/credentials")
@@ -48,7 +51,13 @@ export default function CredentialsPage() {
     ...cred,
     statusSort: STATUS_LABEL[cred.status],
   }));
-  const sortedCreds = sortData(tableCreds, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filteredCreds = tableCreds.filter((cred) => {
+    if (!q) return true;
+    return [cred.name, cred.category, cred.file, cred.note ?? ""]
+      .some((value) => value.toLowerCase().includes(q));
+  });
+  const sortedCreds = sortData(filteredCreds, sortBy, sortDir);
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -63,7 +72,10 @@ export default function CredentialsPage() {
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Credentials</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Credentials</h1>
+              <PageInfo page="credentials" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {loading ? "Loading…" : `${okCount} of ${creds.length} connected`}
           </p>
@@ -74,10 +86,16 @@ export default function CredentialsPage() {
         {loading ? (
           <p className="text-muted-foreground">Loading credentials...</p>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter credentials..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
                       column="name"
@@ -123,20 +141,20 @@ export default function CredentialsPage() {
                       onSort={handleSort}
                     />
                   </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedCreds.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                      No credentials found
-                    </TableCell>
                   </TableRow>
-                ) : (
-                  sortedCreds.map((cred) => {
-                    const Icon = CATEGORY_ICON[cred.category] ?? Settings;
-                    return (
-                      <TableRow key={cred.id}>
+                </TableHeader>
+                <TableBody>
+                  {sortedCreds.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        No credentials found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedCreds.map((cred) => {
+                      const Icon = CATEGORY_ICON[cred.category] ?? Settings;
+                      return (
+                        <TableRow key={cred.id}>
                         <TableCell className="font-medium">
                           <div className="min-w-0">
                             <div className="truncate">{cred.name}</div>
@@ -168,12 +186,13 @@ export default function CredentialsPage() {
                             {STATUS_LABEL[cred.status]}
                           </span>
                         </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

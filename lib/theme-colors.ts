@@ -14,7 +14,8 @@ export const THEME_COLORS: ThemeColor[] = [
   { id: "forest",  label: "Forest",  swatch: "#22c55e", accent: "#22c55e", primary: "#16a34a", primaryFg: "#ffffff" },
   { id: "violet",  label: "Violet",  swatch: "#8b5cf6", accent: "#8b5cf6", primary: "#7c3aed", primaryFg: "#ffffff" },
   { id: "amber",   label: "Amber",   swatch: "#f59e0b", accent: "#f59e0b", primary: "#d97706", primaryFg: "#1c1917" },
-  { id: "rose",    label: "Rose",    swatch: "#f43f5e", accent: "#f43f5e", primary: "#e11d48", primaryFg: "#ffffff" },
+  { id: "rose",    label: "Rose",    swatch: "#ec4899", accent: "#ec4899", primary: "#db2777", primaryFg: "#ffffff" },
+  { id: "indigo",  label: "Indigo",  swatch: "#6366f1", accent: "#6366f1", primary: "#4f46e5", primaryFg: "#ffffff" },
   { id: "teal",    label: "Teal",    swatch: "#14b8a6", accent: "#14b8a6", primary: "#0d9488", primaryFg: "#ffffff" },
 ];
 

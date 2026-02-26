@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
@@ -35,6 +37,7 @@ export default function ModelsPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("source");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [filterQuery, setFilterQuery] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -55,13 +58,31 @@ export default function ModelsPage() {
     else { setSortBy(col); setSortDir("asc"); }
   };
 
-  const sorted = sortData(models, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filteredModels = models.filter((model) => {
+    if (!q) return true;
+    const jobNames = getUsage(model.id).map((job) => job.jobName).join(" ");
+    const tags = (model.tags ?? []).join(" ");
+    return [
+      model.id,
+      model.name,
+      model.provider,
+      model.source,
+      model.speed ?? "",
+      tags,
+      jobNames,
+    ].some((value) => value.toLowerCase().includes(q));
+  });
+  const sorted = sortData(filteredModels, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Models</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Models</h1>
+              <PageInfo page="models" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {loading ? "…" : `${models.length} configured models`}
           </p>
@@ -76,87 +97,94 @@ export default function ModelsPage() {
         {loading ? (
           <p className="text-muted-foreground">Loading…</p>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead><SortableTableHead column="name"     label="Model"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead><SortableTableHead column="provider" label="Provider" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead><SortableTableHead column="tags"     label="Tags"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead><SortableTableHead column="speed"    label="Speed"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead className="text-right"><SortableTableHead column="context" label="Context" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead className="text-center">Input</TableHead>
-                  <TableHead className="text-center">Output</TableHead>
-                  <TableHead>Used For</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.length === 0 ? (
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter models..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No models found</TableCell>
+                    <TableHead><SortableTableHead column="name"     label="Model"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead><SortableTableHead column="provider" label="Provider" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead><SortableTableHead column="tags"     label="Tags"     sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead><SortableTableHead column="speed"    label="Speed"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead className="text-right"><SortableTableHead column="context" label="Context" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead className="text-center">Input</TableHead>
+                    <TableHead className="text-center">Output</TableHead>
+                    <TableHead>Used For</TableHead>
                   </TableRow>
-                ) : sorted.map(model => (
-                  <TableRow key={model.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {model.source === "local"
-                          ? <Cpu className="h-4 w-4 text-muted-foreground shrink-0" />
-                          : <Zap className="h-4 w-4 text-muted-foreground shrink-0" />}
-                        <div className="min-w-0">
-                          <div className="truncate">{model.name}</div>
-                          <code className="text-[10px] text-muted-foreground">{model.id}</code>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{model.provider}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {model.tags?.filter(t => !t.startsWith("alias:")).map(tag => (
-                          <span key={tag} className={`text-xs font-medium px-2 py-0.5 rounded ${TAG_COLORS[tag] ?? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
-                            {tag}
-                          </span>
-                        ))}
-                        {model.sizeBytes ? (
-                          <span className="text-xs text-muted-foreground">{formatBytes(model.sizeBytes)}</span>
-                        ) : null}
-                        {(!model.tags?.length && !model.sizeBytes) ? "—" : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {model.speed ? (
-                        <span className={`text-xs font-medium px-2 py-0.5 rounded capitalize ${SPEED_COLORS[model.speed]}`}>
-                          {model.speed}
-                        </span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {model.context ? `${Math.round(model.context / 1000)}K` : "—"}
-                    </TableCell>
-                    <TableCell className="text-center text-xs text-muted-foreground whitespace-nowrap">
-                      {model.costInput ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-center text-xs text-muted-foreground whitespace-nowrap">
-                      {model.costOutput ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {(() => {
-                        const jobs = getUsage(model.id);
-                        if (!jobs.length) return <span className="text-muted-foreground">—</span>;
-                        return (
-                          <div className="space-y-0.5">
-                            {jobs.map(job => (
-                              <div key={job.jobId} className="truncate text-muted-foreground" title={job.jobName}>
-                                {job.jobName}
-                              </div>
-                            ))}
+                </TableHeader>
+                <TableBody>
+                  {sorted.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No models found</TableCell>
+                    </TableRow>
+                  ) : sorted.map(model => (
+                    <TableRow key={model.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {model.source === "local"
+                            ? <Cpu className="h-4 w-4 text-muted-foreground shrink-0" />
+                            : <Zap className="h-4 w-4 text-muted-foreground shrink-0" />}
+                          <div className="min-w-0">
+                            <div className="truncate">{model.name}</div>
+                            <code className="text-[10px] text-muted-foreground">{model.id}</code>
                           </div>
-                        );
-                      })()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{model.provider}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {model.tags?.filter(t => !t.startsWith("alias:")).map(tag => (
+                            <span key={tag} className={`text-xs font-medium px-2 py-0.5 rounded ${TAG_COLORS[tag] ?? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"}`}>
+                              {tag}
+                            </span>
+                          ))}
+                          {model.sizeBytes ? (
+                            <span className="text-xs text-muted-foreground">{formatBytes(model.sizeBytes)}</span>
+                          ) : null}
+                          {(!model.tags?.length && !model.sizeBytes) ? "—" : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {model.speed ? (
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded capitalize ${SPEED_COLORS[model.speed]}`}>
+                            {model.speed}
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {model.context ? `${Math.round(model.context / 1000)}K` : "—"}
+                      </TableCell>
+                      <TableCell className="text-center text-xs text-muted-foreground whitespace-nowrap">
+                        {model.costInput ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-center text-xs text-muted-foreground whitespace-nowrap">
+                        {model.costOutput ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {(() => {
+                          const jobs = getUsage(model.id);
+                          if (!jobs.length) return <span className="text-muted-foreground">—</span>;
+                          return (
+                            <div className="space-y-0.5">
+                              {jobs.map(job => (
+                                <div key={job.jobId} className="truncate text-muted-foreground" title={job.jobName}>
+                                  {job.jobName}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

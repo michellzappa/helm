@@ -51,15 +51,40 @@ export interface SessionsData {
   byCost: { model: string; costEur: number }[];
 }
 
-function parseKey(key: string): { kind: SessionEntry["kind"]; label: string } {
-  // Strip "agent:main:" prefix
+// Cron job name lookup (lazy-loaded)
+let _cronNames: Record<string, string> | null = null;
+async function loadCronNames(): Promise<Record<string, string>> {
+  if (_cronNames) return _cronNames;
+  try {
+    const raw = await readFile(join(HOME, ".openclaw/cron/jobs.json"), "utf-8");
+    const data = JSON.parse(raw);
+    const jobs = data.jobs || data.payload?.jobs || [];
+    _cronNames = {};
+    for (const j of jobs) {
+      _cronNames[j.id] = j.name || j.payload?.name || j.id;
+    }
+  } catch {
+    _cronNames = {};
+  }
+  return _cronNames;
+}
+
+function parseKey(key: string, cronNames: Record<string, string>): { kind: SessionEntry["kind"]; label: string } {
+  // Strip "agent:<id>:" prefix
   const rest = key.replace(/^agent:[^:]+:/, "");
   if (rest === "main")                         return { kind: "direct",   label: "Main session"          };
-  if (rest.startsWith("cron:"))                return { kind: "cron",     label: "Cron — " + rest.slice(5, 13) + "…" };
-  if (rest.startsWith("telegram:group:"))      return { kind: "telegram", label: "Telegram — " + rest.replace("telegram:group:", "") };
+  if (rest.startsWith("cron:")) {
+    // rest = "cron:<jobId>:run:<runId>" or "cron:<jobId>"
+    const jobId = rest.replace("cron:", "").split(":")[0];
+    const name = cronNames[jobId] || jobId.slice(0, 12) + "…";
+    return { kind: "cron", label: "Cron — " + name };
+  }
+  if (rest.startsWith("telegram:group:"))      return { kind: "telegram", label: "Telegram — " + rest.replace("telegram:group:", "").replace(/:topic:.*/, "") };
+  if (rest.startsWith("telegram:direct:"))     return { kind: "telegram", label: "Telegram DM — " + rest.replace("telegram:direct:", "") };
   if (rest.startsWith("whatsapp:group:"))      return { kind: "whatsapp", label: "WhatsApp — " + rest.replace("whatsapp:group:", "").replace(/@.*/, "") };
+  if (rest.startsWith("whatsapp:direct:"))     return { kind: "whatsapp", label: "WhatsApp DM — " + rest.replace("whatsapp:direct:", "").replace(/@.*/, "") };
   if (rest.startsWith("openai:"))              return { kind: "api",      label: "API — " + rest.slice(7, 15) + "…" };
-  return { kind: "other", label: rest.slice(0, 30) };
+  return { kind: "other", label: rest.slice(0, 40) };
 }
 
 let _cache: { data: SessionsData; at: number } | null = null;
@@ -69,6 +94,7 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
   if (_cache && Date.now() - _cache.at < TTL) {
     return res.json(_cache.data);
   }
+  _cronNames = null; // refresh cron names on cache miss
 
   try {
     const raw = await readFile(
@@ -77,13 +103,14 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     );
     const all: Record<string, Record<string, unknown>> = JSON.parse(raw);
 
+    const cronNames = await loadCronNames();
     const sessions: SessionEntry[] = [];
 
     for (const [key, val] of Object.entries(all)) {
       // Skip sub-run sessions (key contains ":run:")
       if (key.includes(":run:")) continue;
 
-      const { kind, label } = parseKey(key);
+      const { kind, label } = parseKey(key, cronNames);
       const model         = (val.model as string | null) ?? null;
       const inputTokens   = Number(val.inputTokens  ?? 0);
       const outputTokens  = Number(val.outputTokens ?? 0);

@@ -1,3 +1,4 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -103,7 +104,10 @@ export default function Memory() {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Memory Bank</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Memory Bank</h1>
+              <PageInfo page="memory" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {loading ? <Skeleton className="inline-block h-4 w-32" /> : `${counts?.memory ?? "…"} files across all knowledge`}
           </p>

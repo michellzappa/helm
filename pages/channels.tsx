@@ -1,5 +1,7 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { SortableTableHead } from "@/components/SortableTableHead";
+import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MessageSquare, Radio, Send, Users } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -29,6 +31,7 @@ export default function ChannelsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [filterQuery, setFilterQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/channels")
@@ -68,13 +71,22 @@ export default function ChannelsPage() {
     streamingSort: ch.streaming ? 1 : 0,
   }));
 
-  const sortedChannels = sortData(tableChannels, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filteredChannels = tableChannels.filter((ch) => {
+    if (!q) return true;
+    const status = ch.enabled ? "enabled" : "disabled";
+    return [ch.id, status].some((value) => value.toLowerCase().includes(q));
+  });
+  const sortedChannels = sortData(filteredChannels, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Channels</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Channels</h1>
+              <PageInfo page="channels" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">{counts?.channels ?? "…"} configured</p>
         </div>
 
@@ -87,10 +99,16 @@ export default function ChannelsPage() {
         {loading ? (
           <p className="text-muted-foreground">Loading...</p>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter channels..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
                       column="name"
@@ -154,23 +172,23 @@ export default function ChannelsPage() {
                       onSort={handleSort}
                     />
                   </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedChannels.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      No channels found
-                    </TableCell>
                   </TableRow>
-                ) : (
-                  sortedChannels.map((ch) => {
-                    const allowFromText = ch.allowFrom.length === 1 && ch.allowFrom[0] === "*"
-                      ? "everyone"
-                      : `${ch.allowFrom.length} entries`;
+                </TableHeader>
+                <TableBody>
+                  {sortedChannels.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                        No channels found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedChannels.map((ch) => {
+                      const allowFromText = ch.allowFrom.length === 1 && ch.allowFrom[0] === "*"
+                        ? "everyone"
+                        : `${ch.allowFrom.length} entries`;
 
-                    return [
-                      <TableRow key={ch.id}>
+                      return [
+                        <TableRow key={ch.id}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <ChannelIcon id={ch.id} />
@@ -230,38 +248,39 @@ export default function ChannelsPage() {
                               <span className="text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                      </TableRow>,
-                      expanded === ch.id && ch.groups.length > 0 ? (
-                        <TableRow key={`${ch.id}-groups`}>
-                          <TableCell colSpan={7} className="p-0">
-                            <div className="border-t bg-muted/20">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Group ID</TableHead>
-                                    <TableHead>Require Mention</TableHead>
-                                    <TableHead>Enabled</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {ch.groups.map((g) => (
-                                    <TableRow key={g.id}>
-                                      <TableCell className="font-mono text-xs">{g.id}</TableCell>
-                                      <TableCell>{g.requireMention ? "Yes" : "No"}</TableCell>
-                                      <TableCell>{g.enabled === false ? "No" : "Yes"}</TableCell>
+                        </TableRow>,
+                        expanded === ch.id && ch.groups.length > 0 ? (
+                          <TableRow key={`${ch.id}-groups`}>
+                            <TableCell colSpan={7} className="p-0">
+                              <div className="border-t bg-muted/20">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Group ID</TableHead>
+                                      <TableHead>Require Mention</TableHead>
+                                      <TableHead>Enabled</TableHead>
                                     </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : null,
-                    ];
-                  })
-                )}
-              </TableBody>
-            </Table>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {ch.groups.map((g) => (
+                                      <TableRow key={g.id}>
+                                        <TableCell className="font-mono text-xs">{g.id}</TableCell>
+                                        <TableCell>{g.requireMention ? "Yes" : "No"}</TableCell>
+                                        <TableCell>{g.enabled === false ? "No" : "Yes"}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : null,
+                      ];
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

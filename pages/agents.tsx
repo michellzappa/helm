@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Bot, Radio } from "lucide-react";
@@ -21,6 +23,7 @@ export default function AgentsPage() {
   const [selected, setSelected] = useState<OcAgent | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [filterQuery, setFilterQuery] = useState("");
 
   useAutoRefresh(() => {
     fetch("/api/oc-agents")
@@ -58,13 +61,22 @@ export default function AgentsPage() {
     statusSort: agent.isDefault ? 1 : 0,
   }));
 
-  const sortedAgents = sortData(tableAgents, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filteredAgents = tableAgents.filter((agent) => {
+    if (!q) return true;
+    return [agent.name, agent.id, agent.model, agent.workspace]
+      .some((value) => value.toLowerCase().includes(q));
+  });
+  const sortedAgents = sortData(filteredAgents, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Agents</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Agents</h1>
+              <PageInfo page="agents" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {counts?.agents ?? "…"} configured agents
           </p>
@@ -79,10 +91,16 @@ export default function AgentsPage() {
         {loading ? (
           <p className="text-muted-foreground">Loading agents...</p>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter agents..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
                       column="name"
@@ -137,61 +155,62 @@ export default function AgentsPage() {
                       onSort={handleSort}
                     />
                   </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedAgents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      No agents found
-                    </TableCell>
                   </TableRow>
-                ) : (
-                  sortedAgents.map((agent) => (
-                    <TableRow
-                      key={agent.id}
-                      className="cursor-pointer"
-                      onClick={() => setSelected(agent)}
-                    >
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <div className="min-w-0">
-                            <div className="truncate">{agent.name}</div>
-                            <div className="text-xs text-muted-foreground font-mono truncate">{agent.id}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground max-w-xs">
-                        <code className="bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">
-                          {shortPath(agent.workspace)}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
-                          {agent.model}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">{agent.channelCount}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">{agent.skillCount}</span>
-                      </TableCell>
-                      <TableCell>
-                        {agent.isDefault ? (
-                          <span className="text-xs font-medium bg-gray-100 dark:bg-gray-800 text-muted-foreground px-2 py-1 rounded">
-                            Default
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {sortedAgents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        No agents found
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    sortedAgents.map((agent) => (
+                      <TableRow
+                        key={agent.id}
+                        className="cursor-pointer"
+                        onClick={() => setSelected(agent)}
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0">
+                              <div className="truncate">{agent.name}</div>
+                              <div className="text-xs text-muted-foreground font-mono truncate">{agent.id}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-mono text-muted-foreground max-w-xs">
+                          <code className="bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">
+                            {shortPath(agent.workspace)}
+                          </code>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                            {agent.model}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-sm">{agent.channelCount}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-sm">{agent.skillCount}</span>
+                        </TableCell>
+                        <TableCell>
+                          {agent.isDefault ? (
+                            <span className="text-xs font-medium bg-gray-100 dark:bg-gray-800 text-muted-foreground px-2 py-1 rounded">
+                              Default
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

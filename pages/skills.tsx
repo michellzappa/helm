@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -38,7 +40,6 @@ function SkillsSkeleton() {
             <TableHead>Workspace</TableHead>
             <TableHead>Description</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -48,7 +49,6 @@ function SkillsSkeleton() {
               <TableCell><Skeleton className="h-4 w-16" /></TableCell>
               <TableCell><Skeleton className="h-4 w-48" /></TableCell>
               <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-14" /></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -66,8 +66,8 @@ export default function SkillsPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("location");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
-  const [showDisabled, setShowDisabled] = useState(false);
   const [tab, setTab] = useState<LocationTab>("all");
+  const [filterQuery, setFilterQuery] = useState("");
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
   useEffect(() => {
@@ -82,22 +82,26 @@ export default function SkillsPage() {
     else { setSortBy(col); setSortDir("asc"); }
   };
 
-  const byStatus = showDisabled ? skills : skills.filter(s => s.status === "enabled");
-  const byTab = tab === "all" ? byStatus : byStatus.filter(s => s.location === tab);
+  const byTab = tab === "all" ? skills : skills.filter(s => s.location === tab);
+  const q = filterQuery.trim().toLowerCase();
+  const filtered = byTab.filter((skill) => {
+    if (!q) return true;
+    return [skill.name, skill.description, skill.location]
+      .some((value) => value.toLowerCase().includes(q));
+  });
 
   const sorted = sortBy === "location"
-    ? [...byTab].sort((a, b) => {
+    ? [...filtered].sort((a, b) => {
         const diff = (LOCATION_ORDER[a.location] ?? 9) - (LOCATION_ORDER[b.location] ?? 9);
         return sortDir === "asc" ? diff || a.name.localeCompare(b.name) : -diff || b.name.localeCompare(a.name);
       })
-    : sortData(byTab, sortBy, sortDir);
+    : sortData(filtered, sortBy, sortDir);
 
-  // Tab counts (enabled only, unless showDisabled)
   const counts: Record<LocationTab, number> = {
-    all: byStatus.length,
-    workspace: byStatus.filter(s => s.location === "workspace").length,
-    extension: byStatus.filter(s => s.location === "extension").length,
-    global: byStatus.filter(s => s.location === "global").length,
+    all: skills.length,
+    workspace: skills.filter(s => s.location === "workspace").length,
+    extension: skills.filter(s => s.location === "extension").length,
+    global: skills.filter(s => s.location === "global").length,
   };
 
   const TAB_LABELS: { value: LocationTab; label: string }[] = [
@@ -112,17 +116,15 @@ export default function SkillsPage() {
       <div className="space-y-6 sm:space-y-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-4xl font-bold">Skills & Integrations</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-4xl font-bold">Skills & Integrations</h1>
+              <PageInfo page="skills" />
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               {loading ? <Skeleton className="inline-block h-4 w-32" /> : `${globalCounts?.skills ?? "…"} skills`}
             </p>
           </div>
-          <button
-            onClick={() => setShowDisabled(!showDisabled)}
-            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-          >
-            {showDisabled ? "Hide disabled" : "Show disabled"}
-          </button>
+
         </div>
 
         {error && (
@@ -140,6 +142,12 @@ export default function SkillsPage() {
           </TabsList>
         </Tabs>
 
+        <TableFilter
+          placeholder="Filter skills..."
+          value={filterQuery}
+          onChange={setFilterQuery}
+        />
+
         {loading ? <SkillsSkeleton /> : (
           <div className="rounded-lg border overflow-hidden">
             <Table>
@@ -155,15 +163,13 @@ export default function SkillsPage() {
                   <TableHead>
                     <SortableTableHead column="location" label="Type" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
-                  <TableHead>
-                    <SortableTableHead column="status" label="Status" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                  </TableHead>
+
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No skills found</TableCell>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No skills found</TableCell>
                   </TableRow>
                 ) : sorted.map(skill => {
                   const typeConf = TYPE_CONFIG[skill.location];
@@ -201,13 +207,7 @@ export default function SkillsPage() {
                           {typeConf.label}
                         </span>
                       </TableCell>
-                      <TableCell>
-                        <span className={`text-xs px-2 py-1 rounded font-medium ${
-                          skill.status === "enabled"
-                            ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                            : "bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300"
-                        }`}>{skill.status === "enabled" ? "Enabled" : "Disabled"}</span>
-                      </TableCell>
+
                     </TableRow>
                   );
                 })}
@@ -244,11 +244,7 @@ export default function SkillsPage() {
                           : "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200"
                       }`}>{selectedSkill.workspace}</span>
                     )}
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      selectedSkill.status === "enabled"
-                        ? "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-                        : "bg-red-50 dark:bg-red-900 text-red-600 dark:text-red-300"
-                    }`}>{selectedSkill.status}</span>
+
                   </div>
 
                   {/* Description */}

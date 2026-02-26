@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Laptop, Smartphone, Terminal, Server } from "lucide-react";
@@ -59,6 +61,7 @@ export default function NodesPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("lastUsedAtMs");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
+  const [filterQuery, setFilterQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/nodes")
@@ -72,13 +75,27 @@ export default function NodesPage() {
     else { setSortBy(col); setSortDir("asc"); }
   };
 
-  const sorted = sortData(nodes, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filteredNodes = nodes.filter((node) => {
+    if (!q) return true;
+    return [
+      node.deviceId,
+      node.displayName,
+      node.platform,
+      node.clientMode,
+      node.role,
+    ].some((value) => value.toLowerCase().includes(q));
+  });
+  const sorted = sortData(filteredNodes, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Nodes</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Nodes</h1>
+              <PageInfo page="nodes" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {loading ? <Skeleton className="inline-block h-4 w-32" /> : `${counts?.nodes ?? "…"} paired devices`}
           </p>
@@ -87,40 +104,47 @@ export default function NodesPage() {
         {error && <div className="bg-red-50 dark:bg-red-900 border border-red-200 text-red-700 dark:text-red-200 px-4 py-3 rounded">Error: {error}</div>}
 
         {loading ? <NodesSkeleton /> : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead><SortableTableHead column="displayName" label="Device" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead><SortableTableHead column="platform" label="Platform" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead><SortableTableHead column="clientMode" label="Mode" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead><SortableTableHead column="lastUsedAtMs" label="Last seen" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No paired nodes</TableCell></TableRow>
-                ) : sorted.map(node => (
-                  <TableRow key={node.deviceId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {clientIcon(node.clientMode)}
-                        {node.displayName}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{node.platform}</TableCell>
-                    <TableCell>
-                      <span className="text-xs font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded">
-                        {node.clientMode}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{node.role}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{timeAgo(node.lastUsedAtMs)}</TableCell>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter nodes..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead><SortableTableHead column="displayName" label="Device" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead><SortableTableHead column="platform" label="Platform" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead><SortableTableHead column="clientMode" label="Mode" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead><SortableTableHead column="lastUsedAtMs" label="Last seen" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {sorted.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No paired nodes</TableCell></TableRow>
+                  ) : sorted.map(node => (
+                    <TableRow key={node.deviceId} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {clientIcon(node.clientMode)}
+                          {node.displayName}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{node.platform}</TableCell>
+                      <TableCell>
+                        <span className="text-xs font-mono bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                          {node.clientMode}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{node.role}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{timeAgo(node.lastUsedAtMs)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

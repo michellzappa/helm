@@ -1,9 +1,10 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AlertCircle, MessageSquare, Send, Radio, Paperclip, Trash2, X } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useCounts } from "@/lib/counts-context";
 import type { QueueItem } from "@/lib/types";
 
 function ChannelIcon({ channel }: { channel: string }) {
@@ -57,6 +58,7 @@ export default function DeliveryQueuePage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
   const [purging, setPurging] = useState(false);
+  const [filterQuery, setFilterQuery] = useState("");
 
   useEffect(() => {
     fetch("/api/delivery-queue")
@@ -90,12 +92,27 @@ export default function DeliveryQueuePage() {
     }
   };
 
+  const q = filterQuery.trim().toLowerCase();
+  const filteredItems = items.filter((item) => {
+    if (!q) return true;
+    return [
+      item.id,
+      item.channel,
+      item.to,
+      item.text ?? "",
+      item.lastError ?? "",
+    ].some((value) => value.toLowerCase().includes(q));
+  });
+
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold">Delivery</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold">Messages</h1>
+              <PageInfo page="messages" />
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               {loading
                 ? <Skeleton className="inline-block h-4 w-32" />
@@ -138,49 +155,62 @@ export default function DeliveryQueuePage() {
             <p className="text-sm">Delivery queue is empty</p>
           </div>
         ) : (
-          <div className="rounded-lg border overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
-            {items.map(item => (
-              <div key={item.id} className="px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-start gap-4">
-                <ChannelIcon channel={item.channel} />
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium capitalize">{item.channel}</span>
-                    <span className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">{item.to}</span>
-                    {item.hasMedia && (
-                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-                        <Paperclip className="h-3 w-3" /> media
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      {timeAgo(item.enqueuedAt)} · {item.retryCount} retr{item.retryCount === 1 ? "y" : "ies"}
-                    </span>
-                  </div>
-                  {item.text && (
-                    <p className="text-xs text-muted-foreground mt-1 truncate max-w-lg">{item.text}</p>
-                  )}
-                  {item.lastError && (
-                    <div className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
-                      <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <span className="break-all">{item.lastError}</span>
-                    </div>
-                  )}
-                </div>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      disabled={deleting.has(item.id)}
-                      className="shrink-0 p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40 transition-colors"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">Dismiss message</TooltipContent>
-                </Tooltip>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter delivery queue..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            {filteredItems.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground rounded-lg border">
+                <p className="text-sm">No queued messages match this filter.</p>
               </div>
-            ))}
+            ) : (
+              <div className="rounded-lg border overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+                {filteredItems.map(item => (
+                  <div key={item.id} className="px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-800 flex items-start gap-4">
+                    <ChannelIcon channel={item.channel} />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium capitalize">{item.channel}</span>
+                        <span className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">{item.to}</span>
+                        {item.hasMedia && (
+                          <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <Paperclip className="h-3 w-3" /> media
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {timeAgo(item.enqueuedAt)} · {item.retryCount} retr{item.retryCount === 1 ? "y" : "ies"}
+                        </span>
+                      </div>
+                      {item.text && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate max-w-lg">{item.text}</p>
+                      )}
+                      {item.lastError && (
+                        <div className="mt-2 flex items-start gap-1.5 text-xs text-red-600 dark:text-red-400">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span className="break-all">{item.lastError}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          disabled={deleting.has(item.id)}
+                          className="shrink-0 p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-muted-foreground hover:text-red-600 dark:hover:text-red-400 disabled:opacity-40 transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left">Dismiss message</TooltipContent>
+                    </Tooltip>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

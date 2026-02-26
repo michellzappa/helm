@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, Clock, Zap, Play, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -30,6 +32,7 @@ export default function ScheduledPage() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+  const [filterQuery, setFilterQuery] = useState("");
   // Per-job run state: "idle" | "running" | "ok" | "error"
   const [runState, setRunState] = useState<Record<string, "idle" | "running" | "ok" | "error">>({});
 
@@ -115,13 +118,26 @@ export default function ScheduledPage() {
     }
   };
 
-  const sortedTasks = sortData(tasks, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filteredTasks = tasks.filter((task) => {
+    if (!q) return true;
+    const resolvedStatus = task.status || (task.enabled ? "ok" : "disabled");
+    const displayStatus = task.type === "launchagent"
+      ? (task.enabled ? "running" : "stopped")
+      : resolvedStatus;
+    return [task.name, task.agent ?? "", task.model ?? "", resolvedStatus, displayStatus]
+      .some((value) => value.toLowerCase().includes(q));
+  });
+  const sortedTasks = sortData(filteredTasks, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Crons</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Crons</h1>
+              <PageInfo page="crons" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {counts?.scheduled ?? "…"} cron jobs
           </p>
@@ -136,10 +152,16 @@ export default function ScheduledPage() {
         {loading ? (
           <p className="text-muted-foreground">Loading scheduled tasks...</p>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter scheduled tasks..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
                       column="name"
@@ -153,15 +175,6 @@ export default function ScheduledPage() {
                     <SortableTableHead
                       column="agent"
                       label="Agent"
-                      sortBy={sortBy}
-                      sortDir={sortDir}
-                      onSort={handleSort}
-                    />
-                  </TableHead>
-                  <TableHead className="cursor-pointer">
-                    <SortableTableHead
-                      column="type"
-                      label="Type"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
@@ -205,18 +218,18 @@ export default function ScheduledPage() {
                     />
                   </TableHead>
                   <TableHead className="w-16 text-right">Run</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tasks.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                      No scheduled tasks
-                    </TableCell>
                   </TableRow>
-                ) : (
-                  sortedTasks.map((task) => (
-                    <TableRow key={task.id}>
+                </TableHeader>
+                <TableBody>
+                  {sortedTasks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        No scheduled tasks
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedTasks.map((task) => (
+                      <TableRow key={task.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
                           {task.type === "cron" ? (
@@ -233,12 +246,7 @@ export default function ScheduledPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-medium px-2 py-1 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                          {getTypeDisplay(task)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                        <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
                           {task.model || "—"}
                         </span>
                       </TableCell>
@@ -314,11 +322,12 @@ export default function ScheduledPage() {
                           );
                         })()}
                       </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -82,7 +83,10 @@ export default function WorkspacesPage() {
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Workspaces</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Workspaces</h1>
+              <PageInfo page="workspaces" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {counts?.workspaces ?? "…"} workspaces and projects
           </p>

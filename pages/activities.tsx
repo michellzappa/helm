@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
+import { SortableTableHead } from "@/components/SortableTableHead";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useAutoRefresh, useSettings, type DateFormat } from "@/lib/settings-context";
 import { THEME_COLORS } from "@/lib/theme-colors";
 import { fmtAge, fmtDate } from "@/lib/format";
@@ -75,6 +80,9 @@ function formatRange(sinceMs: number, dateFormat: DateFormat): string {
 export default function ActivitiesPage() {
   const [data, setData] = useState<ActivitiesResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<string | null>("timestamp");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
+  const [filterQuery, setFilterQuery] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<Set<ActivityType>>(
     () => new Set(FILTER_TYPES)
   );
@@ -114,13 +122,40 @@ export default function ActivitiesPage() {
     });
   };
 
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDir(getNextSortDirection(sortDir));
+    } else {
+      setSortBy(column);
+      setSortDir(column === "timestamp" ? "desc" : "asc");
+    }
+  };
+
   const activities = data?.activities ?? [];
+  const q = filterQuery.trim().toLowerCase();
+  const filteredActivities = activities.filter((activity) => {
+    if (!q) return true;
+    return [
+      activity.type,
+      activity.status,
+      activity.summary,
+      activity.sessionKey,
+      activity.cronJobId ?? "",
+      activity.channel ?? "",
+      activity.model ?? "",
+      activity.toolName ?? "",
+    ].some((value) => value.toLowerCase().includes(q));
+  });
+  const sortedActivities = sortData(filteredActivities, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Activities</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Activities</h1>
+            <PageInfo page="activities" />
+          </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {loading ? "…" : `${data?.total ?? 0} events`} · {formatRange(since, settings.dateFormat)}
           </p>
@@ -155,86 +190,158 @@ export default function ActivitiesPage() {
         </Card>
 
         <div className="space-y-3">
-          {loading && (
-            <Card>
-              <CardContent className="py-6 text-sm text-muted-foreground">Loading activities…</CardContent>
-            </Card>
-          )}
+          <TableFilter
+            placeholder="Filter activities..."
+            value={filterQuery}
+            onChange={setFilterQuery}
+          />
 
-          {!loading && activities.length === 0 && (
-            <Card>
-              <CardContent className="py-6 text-sm text-muted-foreground">No activities found for this filter.</CardContent>
-            </Card>
-          )}
-
-          {activities.map(activity => {
-            const Icon = iconFor(activity.type);
-            return (
-              <Card key={activity.id}>
-                <CardContent className="py-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 shrink-0">
-                      <Icon
-                        className="h-4 w-4"
-                        style={{ color: activity.status === "error" ? "#ef4444" : accent }}
-                      />
-                    </div>
-
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <p className="text-sm leading-relaxed break-words">{activity.summary}</p>
-                      <div className="flex flex-wrap gap-2 text-[11px]">
-                        {activity.cronJobId && (
-                          <span
-                            className="px-2 py-0.5 rounded-full tabular-nums"
-                            style={{
-                              color: accent,
-                              backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
-                            }}
-                          >
-                            cron:{activity.cronJobId}
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <SortableTableHead
+                      column="timestamp"
+                      label="Time"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <SortableTableHead
+                      column="type"
+                      label="Type"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <SortableTableHead
+                      column="summary"
+                      label="Summary"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead>
+                    <SortableTableHead
+                      column="sessionKey"
+                      label="Session"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead>Meta</TableHead>
+                  <TableHead>
+                    <SortableTableHead
+                      column="status"
+                      label="Status"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">Loading activities…</TableCell>
+                  </TableRow>
+                ) : sortedActivities.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">No activities found for this filter.</TableCell>
+                  </TableRow>
+                ) : sortedActivities.map((activity) => {
+                  const Icon = iconFor(activity.type);
+                  return (
+                    <TableRow key={activity.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                        <div>{fmtAge(activity.timestamp)}</div>
+                        <div>{fmtDate(new Date(activity.timestamp), settings.dateFormat)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="inline-flex items-center gap-2 text-xs">
+                          <Icon
+                            className="h-4 w-4"
+                            style={{ color: activity.status === "error" ? "#ef4444" : accent }}
+                          />
+                          {TYPE_LABELS[activity.type]}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm leading-relaxed max-w-[520px]">
+                        <p className="break-words">{activity.summary}</p>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <span className="font-mono text-muted-foreground break-all">{activity.sessionKey}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-2 text-[11px]">
+                          {activity.cronJobId && (
+                            <span
+                              className="px-2 py-0.5 rounded-full tabular-nums"
+                              style={{
+                                color: accent,
+                                backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
+                              }}
+                            >
+                              cron:{activity.cronJobId}
+                            </span>
+                          )}
+                          {activity.channel && (
+                            <span
+                              className="px-2 py-0.5 rounded-full"
+                              style={{
+                                color: accent,
+                                backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
+                              }}
+                            >
+                              {activity.channel}
+                            </span>
+                          )}
+                          {activity.toolName && (
+                            <span
+                              className="px-2 py-0.5 rounded-full"
+                              style={{
+                                color: accent,
+                                backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
+                              }}
+                            >
+                              {activity.toolName}
+                            </span>
+                          )}
+                          {activity.model && (
+                            <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              {activity.model}
+                            </span>
+                          )}
+                          {!activity.cronJobId && !activity.channel && !activity.toolName && !activity.model && (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {activity.status === "error" ? (
+                          <span className="px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200">
+                            error
                           </span>
-                        )}
-                        {activity.channel && (
-                          <span
-                            className="px-2 py-0.5 rounded-full"
-                            style={{
-                              color: accent,
-                              backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
-                            }}
-                          >
-                            {activity.channel}
-                          </span>
-                        )}
-                        {activity.toolName && (
-                          <span
-                            className="px-2 py-0.5 rounded-full"
-                            style={{
-                              color: accent,
-                              backgroundColor: "color-mix(in srgb, var(--theme-accent) 12%, transparent)",
-                            }}
-                          >
-                            {activity.toolName}
-                          </span>
-                        )}
-                        {activity.model && (
+                        ) : (
                           <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                            {activity.model}
+                            ok
                           </span>
                         )}
-                        <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground truncate" title={activity.sessionKey}>
-                          {activity.sessionKey}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {fmtAge(activity.timestamp)}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         <div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Link from "next/link";
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { ActivityCharts } from "@/components/ActivityCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +16,16 @@ import type { TailscaleData } from "./api/tailscale";
 
 interface ActivitiesResponse {
   total: number;
+}
+
+interface ScheduledTask {
+  id: string;
+  name: string;
+  type: "cron" | "launchagent";
+  schedule: string;
+  enabled: boolean;
+  nextRunAtMs?: number;
+  model?: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -347,6 +358,78 @@ function ActivitySummaryCard() {
   );
 }
 
+function fmtRelativeNextRun(nextRunMs?: number) {
+  if (!nextRunMs) return "—";
+  const diffMs = nextRunMs - Date.now();
+  if (diffMs <= 0) return "overdue";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "in <1m";
+  if (mins < 60) return `in ${mins}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `in ${hours}h ${mins % 60}m`;
+  const days = Math.floor(hours / 24);
+  return `in ${days}d`;
+}
+
+function UpcomingCronsCard() {
+  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+  const [error, setError] = useState(false);
+
+  useAutoRefresh(() => {
+    fetch("/api/scheduled-tasks")
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d)) {
+          setTasks(d);
+          setError(false);
+          return;
+        }
+        setError(true);
+      })
+      .catch(() => setError(true));
+  });
+
+  const upcoming = tasks
+    .filter(task => task.type === "cron" && task.enabled && !!task.nextRunAtMs && task.nextRunAtMs > Date.now())
+    .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0))
+    .slice(0, 5);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">Upcoming Crons</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {error && <p className="text-sm text-muted-foreground">Unavailable</p>}
+        {!error && tasks.length === 0 && (
+          <div className="space-y-2">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="h-4 bg-muted rounded animate-pulse" style={{ width: `${80 - i * 10}%` }} />
+            ))}
+          </div>
+        )}
+        {!error && tasks.length > 0 && upcoming.length === 0 && (
+          <p className="text-sm text-muted-foreground">No upcoming cron runs.</p>
+        )}
+        {!error && upcoming.length > 0 && (
+          <div className="space-y-2">
+            {upcoming.map(task => (
+              <div key={task.id} className="text-xs sm:text-sm space-y-0.5">
+                <p className="font-medium truncate" title={task.name}>{task.name}</p>
+                <p className="text-muted-foreground truncate">
+                  <span className="tabular-nums">{fmtRelativeNextRun(task.nextRunAtMs)}</span>
+                  {" · "}
+                  <span>{task.model || "default"}</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -356,28 +439,27 @@ export default function Dashboard() {
     { key: "system", visible: settings.dashboardCards.system, node: <SystemCard /> },
     { key: "tailscale", visible: settings.dashboardCards.tailscale, node: <TailscaleCard /> },
     { key: "activity", visible: settings.dashboardCards.activity, node: <ActivitySummaryCard /> },
+    { key: "upcoming-crons", visible: true, node: <UpcomingCronsCard /> },
   ].filter(card => card.visible);
 
   return (
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
+            <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-4xl font-bold">Dashboard</h1>
+              <PageInfo page="dashboard" />
+            </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">Welcome to Helm</p>
         </div>
 
-        {/* Weather · System · Tailscale · Activity */}
+        {/* Masonry-style dashboard cards */}
         {cards.length > 0 ? (
           <div
-            className={cn(
-              "grid grid-cols-1 gap-4",
-              cards.length > 1 && "sm:grid-cols-2",
-              cards.length > 2 && "lg:grid-cols-3",
-              cards.length > 3 && "xl:grid-cols-4"
-            )}
+            className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4"
           >
             {cards.map(card => (
-              <div key={card.key}>{card.node}</div>
+              <div key={card.key} className="break-inside-avoid mb-4">{card.node}</div>
             ))}
           </div>
         ) : (

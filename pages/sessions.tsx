@@ -1,4 +1,6 @@
+import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
+import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MessageSquare, Bot, Clock, Cpu, Globe } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -25,8 +27,6 @@ function fmtTokens(n: number): string {
 
 function fmtCost(eur: number): string {
   if (eur === 0) return "—";
-  if (eur < 0.001) return "< €0.001";
-  if (eur < 0.01)  return "€" + eur.toFixed(4);
   return "€" + eur.toFixed(3);
 }
 
@@ -40,6 +40,7 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy]   = useState<string | null>("updatedAt");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
+  const [filterQuery, setFilterQuery] = useState("");
 
   useAutoRefresh(() => {
     fetch("/api/sessions")
@@ -54,19 +55,28 @@ export default function SessionsPage() {
   };
 
   const sessions = data?.sessions ?? [];
-  const sorted   = sortData(sessions, sortBy, sortDir);
+  const q = filterQuery.trim().toLowerCase();
+  const filtered = sessions.filter((session) => {
+    if (!q) return true;
+    return [session.label, session.model ?? ""]
+      .some((value) => value.toLowerCase().includes(q));
+  });
+  const sorted = sortData(filtered, sortBy, sortDir);
 
   return (
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-4xl font-bold">Sessions</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-4xl font-bold">Sessions</h1>
+              <PageInfo page="sessions" />
+            </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               {loading ? "…" : `${sessions.length} sessions`}
               {data && data.totalCostEur > 0 && (
                 <span className="ml-2 text-muted-foreground">
-                  · total cost <span className="font-medium text-foreground">€{data.totalCostEur.toFixed(3)}</span>
+                  · total cost <span className="font-medium text-foreground">€{data.totalCostEur.toFixed(2)}</span>
                 </span>
               )}
             </p>
@@ -77,7 +87,7 @@ export default function SessionsPage() {
             <div className="flex flex-wrap gap-2">
               {data.byCost.map(({ model, costEur }) => (
                 <span key={model} className="text-xs px-2.5 py-1 rounded-full bg-muted text-muted-foreground tabular-nums">
-                  {modelShort(model)} · <span className="font-medium text-foreground">€{costEur.toFixed(3)}</span>
+                  {modelShort(model)} · <span className="font-medium text-foreground">€{costEur.toFixed(2)}</span>
                 </span>
               ))}
             </div>
@@ -87,10 +97,16 @@ export default function SessionsPage() {
         {loading ? (
           <p className="text-muted-foreground text-sm">Loading sessions…</p>
         ) : (
-          <div className="rounded-lg border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
+          <div className="space-y-3">
+            <TableFilter
+              placeholder="Filter sessions..."
+              value={filterQuery}
+              onChange={setFilterQuery}
+            />
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                   <TableHead>
                     <SortableTableHead column="label"      label="Session"    sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
@@ -115,19 +131,19 @@ export default function SessionsPage() {
                   <TableHead className="text-right">
                     <SortableTableHead column="updatedAt"  label="Last active" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No sessions found</TableCell>
                   </TableRow>
-                ) : sorted.map(s => (
-                  <TableRow key={s.key}>
+                </TableHeader>
+                <TableBody>
+                  {sorted.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">No sessions found</TableCell>
+                    </TableRow>
+                  ) : sorted.map(s => (
+                    <TableRow key={s.key}>
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-muted-foreground shrink-0">{KIND_ICON[s.kind]}</span>
-                        <span className="truncate text-sm font-medium max-w-[220px]" title={s.key}>
+                        <span className="truncate text-sm font-medium max-w-[400px]" title={s.key}>
                           {s.label}
                         </span>
                       </div>
@@ -155,10 +171,11 @@ export default function SessionsPage() {
                     <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
                       {fmtAge(s.updatedAt)}
                     </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </div>
