@@ -47,7 +47,6 @@ export const MENU_ITEMS: {
   { href: "/activities",     label: "Activities",     icon: Activity                            },
   { href: "/agents",         label: "Agents",         icon: Bot,         countKey: "agents"      },
   { href: "/channels",       label: "Channels",       icon: Radio,       countKey: "channels"    },
-  { href: "/spend",          label: "Spend",          icon: Euro                                },
   { href: "/credentials",    label: "Credentials",    icon: KeyRound,    countKey: "credentials" },
   { href: "/crons",           label: "Crons",          icon: Calendar,    countKey: "scheduled"   },
   { href: "/heartbeats",      label: "Heartbeats",     icon: Heart                           },
@@ -57,6 +56,7 @@ export const MENU_ITEMS: {
   { href: "/nodes",          label: "Nodes",          icon: Server,      countKey: "nodes"       },
   { href: "/sessions",       label: "Sessions",       icon: History,     countKey: "sessions"    },
   { href: "/skills",         label: "Skills",         icon: Zap,         countKey: "skills"      },
+  { href: "/spend",          label: "Spend",          icon: Euro                                },
   { href: "/workspaces",     label: "Workspaces",     icon: FolderOpen,  countKey: "workspaces"  },
 ];
 
