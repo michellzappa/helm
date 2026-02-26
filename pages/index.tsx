@@ -436,7 +436,7 @@ function UpcomingCronsCard() {
   );
 }
 
-function MiniSparkline({ values }: { values: number[] }) {
+function MiniSparkline({ values, labels }: { values: number[]; labels?: string[] }) {
   if (!values.length) return <div className="h-8 rounded bg-muted" />;
   const width = 120;
   const height = 28;
@@ -451,16 +451,23 @@ function MiniSparkline({ values }: { values: number[] }) {
     })
     .join(" ");
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-8 w-full">
-      <polyline
-        fill="none"
-        stroke="var(--theme-accent)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
+    <div>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-8 w-full">
+        <polyline
+          fill="none"
+          stroke="var(--theme-accent)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+        />
+      </svg>
+      {labels && labels.length > 0 && (
+        <div className="flex justify-between mt-1 text-[9px] text-muted-foreground/50">
+          {labels.map((l, i) => <span key={i}>{l}</span>)}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -548,7 +555,10 @@ function TodaySpendCard() {
   const displayData = mounted ? data : null;
 
   const daily = displayData?.daily ?? [];
-  const points = daily.slice(-14).map((d) => d.cost);
+  const last14 = daily.slice(-14);
+  const points = last14.map((d) => d.cost);
+  const fmtShort = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en", { month: "short", day: "numeric" });
+  const spendLabels = last14.length > 0 ? [fmtShort(last14[0].date), fmtShort(last14[last14.length - 1].date)] : [];
   const today = displayData?.summary.today ?? 0;
   const yesterday = daily.length > 1 ? daily[daily.length - 2].cost : 0;
   const delta = today - yesterday;
@@ -579,7 +589,7 @@ function TodaySpendCard() {
             {symbol}{Math.abs(delta).toFixed(2)}
           </span>
         </div>
-        <MiniSparkline values={points} />
+        <MiniSparkline values={points} labels={spendLabels} />
       </CardContent>
     </Card>
   );
@@ -869,7 +879,10 @@ function ActiveSessionsCard() {
   const active = sessions.filter((s) => now - s.updatedAt < 30 * 60 * 1000).length;
   const idle = Math.max(0, sessions.length - active);
   const total = Math.max(sessions.length, 1);
-  const points = (displayCost?.daily ?? []).slice(-7).map((d) => d.cost);
+  const last7 = (displayCost?.daily ?? []).slice(-7);
+  const points = last7.map((d) => d.cost);
+  const fmtDay = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en", { weekday: "short" });
+  const sessionLabels = last7.length > 0 ? [fmtDay(last7[0].date), fmtDay(last7[last7.length - 1].date)] : [];
 
   return (
     <Card>
@@ -892,7 +905,7 @@ function ActiveSessionsCard() {
           <div className="h-full" style={{ width: `${(idle / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.4 }} />
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">{active} active · {idle} idle</p>
-        <MiniSparkline values={points} />
+        <MiniSparkline values={points} labels={sessionLabels} />
       </CardContent>
     </Card>
   );
