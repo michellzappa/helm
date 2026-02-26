@@ -28,7 +28,7 @@ import type { ModelUsage } from "./api/model-usage";
 import type { PairedNode } from "./api/nodes";
 import type { SessionsData } from "./api/sessions";
 import type { WorkspaceSize } from "./api/workspace-sizes";
-import { ActivityCharts } from "@/components/ActivityCharts";
+import { ErrorLog } from "@/components/ActivityCharts";
 
 interface ActivitiesResponse {
   total: number;
@@ -1459,7 +1459,7 @@ export default function Dashboard() {
           </button>
           {showLog && (
             <div className="mt-4">
-              <ActivityCharts />
+              <ErrorLog />
             </div>
           )}
         </div>

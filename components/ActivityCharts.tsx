@@ -365,7 +365,7 @@ function LevelPill({
   );
 }
 
-function ErrorLog({
+export function ErrorLog({
   data,
   cronJumpSeq = 0,
   containerRef,

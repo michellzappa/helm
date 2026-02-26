@@ -247,12 +247,72 @@ async function collectSessionStats(): Promise<SessionStats> {
   };
 }
 
+const GATEWAY_LOG = join(HOME, ".openclaw/logs/gateway.log");
+const MAX_ERRORS = 50;
+
+async function collectErrors(): Promise<ErrorEntry[]> {
+  if (!existsSync(GATEWAY_LOG)) return [];
+
+  const errors: ErrorEntry[] = [];
+  const cutoff = Date.now() - LOOKBACK_DAYS * DAY_MS;
+
+  try {
+    const rl = createInterface({
+      input: createReadStream(GATEWAY_LOG),
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of rl) {
+      if (errors.length >= MAX_ERRORS) break;
+
+      // Parse timestamp from start of line (ISO format)
+      const tsMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      if (!tsMatch) continue;
+
+      const ts = new Date(tsMatch[1]);
+      if (isNaN(ts.getTime()) || ts.getTime() < cutoff) continue;
+
+      // Check if this is an error or warn line
+      const isError = line.includes('"level":"error"') || line.includes('level=error') || line.includes(' ERROR ') || line.includes(' ERROR]');
+      const isWarn = line.includes('"level":"warn"') || line.includes('level=warn') || line.includes(' WARN ') || line.includes(' WARN]');
+
+      if (!isError && !isWarn) continue;
+
+      // Extract message - look for common patterns
+      let message = line.slice(tsMatch[0].length).trim();
+      // Try to extract cleaner message from JSON if present
+      try {
+        const jsonMatch = line.match(/\{.*\}$/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          message = parsed.message || parsed.error || parsed.msg || message;
+        }
+      } catch {}
+
+      // Truncate long messages
+      if (message.length > 200) message = message.slice(0, 200) + "…";
+
+      errors.push({
+        tsMs: ts.getTime(),
+        level: isError ? "error" : "warn",
+        subsystem: "gateway",
+        message: message || "Unknown error",
+      });
+    }
+  } catch {}
+
+  // Sort newest first and limit
+  return errors.sort((a, b) => b.tsMs - a.tsMs).slice(0, MAX_ERRORS);
+}
+
 async function fetchActivityData(): Promise<ActivityData> {
   const [sessionStats, channels, cron] = await Promise.all([
     collectSessionStats(),
     Promise.resolve(deriveChannels()),
     Promise.resolve(cronStats()),
   ]);
+
+  const errors = await collectErrors();
 
   return {
     daily: sessionStats.daily,
@@ -262,7 +322,7 @@ async function fetchActivityData(): Promise<ActivityData> {
     totalEvents: sessionStats.totalEvents,
     logDays: sessionStats.logDays,
     logSource: sessionStats.logSource,
-    errors: [],
+    errors,
   };
 }
 
