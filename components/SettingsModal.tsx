@@ -126,7 +126,7 @@ export function SettingsModal({ open, onOpenChange, menuItems }: Props) {
                       onClick={() => setSetting("themeColor", color.id)}
                       title={color.label}
                       className={cn(
-                        "h-5 w-9 rounded-full transition-all",
+                        "h-5 w-5 rounded-full transition-all",
                         active
                           ? "ring-2 ring-offset-2 ring-foreground/50 scale-110"
                           : "opacity-70 hover:opacity-100 hover:scale-105"
