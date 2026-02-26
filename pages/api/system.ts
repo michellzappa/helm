@@ -2,6 +2,8 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import os from "os";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { system as _demoFixture } from "../../lib/demo-fixtures";
 
 const execAsync = promisify(exec);
 
@@ -69,7 +71,7 @@ async function getDisk(): Promise<SystemMetrics["disk"]> {
 let _cache: { data: SystemMetrics; at: number } | null = null;
 const TTL = 10_000; // system metrics refresh every 10s max
 
-export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
+async function handler(_req: NextApiRequest, res: NextApiResponse) {
   if (_cache && Date.now() - _cache.at < TTL) {
     return res.json(_cache.data);
   }
@@ -86,3 +88,5 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

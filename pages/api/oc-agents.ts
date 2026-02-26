@@ -2,6 +2,8 @@ import os from "os";
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { ocAgents as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 
@@ -23,7 +25,7 @@ export interface OcAgent {
   bindings: OcBinding[];
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OcAgent[] | { error: string }>
 ) {
@@ -87,3 +89,5 @@ export default async function handler(
     res.status(500).json({ error: (err as Error).message });
   }
 }
+
+export default withDemo(_demoFixture, handler);

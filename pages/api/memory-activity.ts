@@ -2,6 +2,8 @@ import os from "os";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { memoryActivity as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 const MEMORY_DIR = join(HOME, ".openclaw/workspace/memory");
@@ -27,7 +29,7 @@ function startOfDayMs(daysAgo = 0): number {
   return d.getTime();
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<MemoryActivityData | { error: string }>
 ) {
@@ -79,3 +81,5 @@ export default async function handler(
     res.status(500).json({ error: (err as Error).message });
   }
 }
+
+export default withDemo(_demoFixture, handler);

@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { memorySummary as _demoFixture } from "../../lib/demo-fixtures";
 
 export interface MemorySummary {
   totalFiles: number;
@@ -8,7 +10,7 @@ export interface MemorySummary {
   sizeBytes: number;
 }
 
-export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
     // Simple file system check for memory directory
     const fs = require("fs");
@@ -46,3 +48,5 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

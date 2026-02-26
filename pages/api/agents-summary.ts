@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { execSync } from "child_process";
+import { withDemo } from "../../lib/demo-guard";
+import { agentsSummary as _demoFixture } from "../../lib/demo-fixtures";
 
 export interface AgentsSummary {
   total: number;
@@ -12,7 +14,7 @@ export interface AgentsSummary {
   };
 }
 
-export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
     // Get agents list
     const agentsOutput = execSync("openclaw agents list --json", {
@@ -48,3 +50,5 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

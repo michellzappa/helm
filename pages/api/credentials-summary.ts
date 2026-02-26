@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { execSync } from "child_process";
+import { withDemo } from "../../lib/demo-guard";
+import { credentialsSummary as _demoFixture } from "../../lib/demo-fixtures";
 
 export interface CredentialsSummary {
   total: number;
@@ -9,7 +11,7 @@ export interface CredentialsSummary {
   byCategory: Record<string, number>;
 }
 
-export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
     const output = execSync("openclaw credentials list --json", {
       encoding: "utf-8",
@@ -40,3 +42,5 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

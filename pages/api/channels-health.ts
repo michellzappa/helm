@@ -2,6 +2,8 @@ import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { channelsHealth as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 
@@ -23,7 +25,7 @@ function clampPct(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ChannelsHealthData | { error: string }>
 ) {
@@ -91,3 +93,5 @@ export default async function handler(
     res.status(500).json({ error: (err as Error).message });
   }
 }
+
+export default withDemo(_demoFixture, handler);

@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { execSync } from "child_process";
+import { withDemo } from "../../lib/demo-guard";
+import { channelsSummary as _demoFixture } from "../../lib/demo-fixtures";
 
 export interface ChannelsSummary {
   total: number;
@@ -8,7 +10,7 @@ export interface ChannelsSummary {
   byChannel: Record<string, { healthy: boolean; recent: number }>;
 }
 
-export default function handler(_req: NextApiRequest, res: NextApiResponse) {
+function handler(_req: NextApiRequest, res: NextApiResponse) {
   try {
     const output = execSync("openclaw channels list --json", {
       encoding: "utf-8",
@@ -38,3 +40,5 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

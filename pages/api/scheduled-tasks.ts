@@ -5,6 +5,8 @@ import { promisify } from "util";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Cron } from "croner";
+import { withDemo } from "../../lib/demo-guard";
+import { scheduledTasks as _demoFixture } from "../../lib/demo-fixtures";
 
 const execAsync = promisify(exec);
 const HOME = os.homedir();
@@ -44,7 +46,7 @@ function getNextRunTime(
   }
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ScheduledTask[] | { error: string }>
 ) {
@@ -177,3 +179,5 @@ export default async function handler(
     });
   }
 }
+
+export default withDemo(_demoFixture, handler);

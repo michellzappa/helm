@@ -3,6 +3,8 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { activity as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 const TZ = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -335,7 +337,7 @@ function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<Acti
 let _cache: { data: ActivityData; at: number } | null = null;
 const TTL = 60_000;
 
-export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
+async function handler(_req: NextApiRequest, res: NextApiResponse) {
   const now = Date.now();
   if (_cache && now - _cache.at < TTL) {
     res.setHeader("Cache-Control", "s-maxage=60");
@@ -353,3 +355,5 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
   res.setHeader("Cache-Control", "s-maxage=60");
   res.json(data);
 }
+
+export default withDemo(_demoFixture, handler);

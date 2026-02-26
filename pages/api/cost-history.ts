@@ -4,6 +4,8 @@ import { readdir, readFile, stat } from "fs/promises";
 import { join, basename } from "path";
 import * as readline from "readline";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { costHistory as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 const SESSIONS_DIR = join(HOME, ".openclaw/agents/main/sessions");
@@ -248,7 +250,7 @@ function buildResponse(events: CostEvent[]): CostHistoryData {
   };
 }
 
-export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
+async function handler(_req: NextApiRequest, res: NextApiResponse) {
   if (responseCache && Date.now() - responseCache.at < TTL) {
     return res.status(200).json(responseCache.data);
   }
@@ -263,3 +265,5 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

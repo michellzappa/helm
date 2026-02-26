@@ -1,6 +1,8 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { tailscale as _demoFixture } from "../../lib/demo-fixtures";
 
 const execAsync = promisify(exec);
 
@@ -24,7 +26,7 @@ export interface TailscaleData {
 let cache: { data: TailscaleData; ts: number } | null = null;
 const TTL = 2 * 60 * 1000; // 2 min — peer state doesn't thrash
 
-export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
+async function handler(_req: NextApiRequest, res: NextApiResponse) {
   if (cache && Date.now() - cache.ts < TTL) {
     return res.json(cache.data);
   }
@@ -59,3 +61,5 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     res.status(500).json({ error: e instanceof Error ? e.message : "Tailscale unavailable" });
   }
 }
+
+export default withDemo(_demoFixture, handler);

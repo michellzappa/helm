@@ -4,6 +4,8 @@ import { join } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { modelUsage as _demoFixture } from "../../lib/demo-fixtures";
 
 const execAsync = promisify(exec);
 
@@ -36,7 +38,7 @@ async function buildAliasMap(): Promise<Record<string, string>> {
   return map;
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ModelUsage[] | { error: string }>
 ) {
@@ -69,3 +71,5 @@ export default async function handler(
     res.status(500).json({ error: (err as Error).message });
   }
 }
+
+export default withDemo(_demoFixture, handler);

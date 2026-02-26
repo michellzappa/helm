@@ -2,6 +2,8 @@ import os from "os";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { sessions as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 
@@ -90,7 +92,7 @@ function parseKey(key: string, cronNames: Record<string, string>): { kind: Sessi
 let _cache: { data: SessionsData; at: number } | null = null;
 const TTL = 30_000;
 
-export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
+async function handler(_req: NextApiRequest, res: NextApiResponse) {
   if (_cache && Date.now() - _cache.at < TTL) {
     return res.json(_cache.data);
   }
@@ -148,3 +150,5 @@ export default async function handler(_req: NextApiRequest, res: NextApiResponse
     res.status(500).json({ error: String(err) });
   }
 }
+
+export default withDemo(_demoFixture, handler);

@@ -2,6 +2,8 @@ import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { skills as _demoFixture } from "../../lib/demo-fixtures";
 
 interface Skill {
   name: string;
@@ -125,7 +127,7 @@ async function scanSkills(basePath: string, location: "workspace" | "global" | "
   return skills;
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Skill[] | { error: string }>
 ) {
@@ -167,3 +169,5 @@ export default async function handler(
     });
   }
 }
+
+export default withDemo(_demoFixture, handler);

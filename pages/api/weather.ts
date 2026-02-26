@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import https from "https";
+import { withDemo } from "../../lib/demo-guard";
+import { weather as _demoFixture } from "../../lib/demo-fixtures";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 // Override via env vars in .env.local:
@@ -64,7 +66,7 @@ function fetchJson(url: string): Promise<unknown> {
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (cache && Date.now() - cache.ts < CACHE_TTL_MS) {
     return res.json(cache.data);
   }
@@ -105,3 +107,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: msg });
   }
 }
+
+export default withDemo(_demoFixture, handler);

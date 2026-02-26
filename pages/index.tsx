@@ -543,7 +543,7 @@ function QuickAgentsCard() {
               key={agent.id}
               title={`${agent.name}${agent.id === defaultId ? " (default)" : ""}`}
               className={cn(
-                "h-3 w-3 rounded-full border",
+                "h-3 w-3 rounded-full border aspect-square shrink-0",
                 agent.id === defaultId ? "ring-2 ring-offset-1 ring-[var(--theme-accent)]" : "opacity-80"
               )}
               style={{ backgroundColor: "var(--theme-accent)", opacity: agent.sessionCount > 0 ? 1 : 0.4, borderColor: "transparent" }}

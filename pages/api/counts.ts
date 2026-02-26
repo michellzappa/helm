@@ -7,6 +7,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 const execAsync = promisify(exec);
 import type { SidebarCounts } from "@/lib/types";
+import { withDemo } from "../../lib/demo-guard";
+import { counts as _demoFixture } from "../../lib/demo-fixtures";
 
 export type { SidebarCounts } from "@/lib/types";
 
@@ -153,7 +155,7 @@ async function countSessions(): Promise<number> {
   } catch { return 0; }
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<SidebarCounts | { error: string }>
 ) {
@@ -181,3 +183,5 @@ export default async function handler(
     res.status(500).json({ error: (err as Error).message });
   }
 }
+
+export default withDemo(_demoFixture, handler);

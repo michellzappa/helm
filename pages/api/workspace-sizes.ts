@@ -2,6 +2,8 @@ import os from "os";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withDemo } from "../../lib/demo-guard";
+import { workspaceSizes as _demoFixture } from "../../lib/demo-fixtures";
 
 const HOME = os.homedir();
 const ROOT = join(HOME, ".openclaw");
@@ -42,7 +44,7 @@ async function dirSize(path: string, depth = 0): Promise<number> {
   return total;
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse<WorkspaceSize[] | { error: string }>
 ) {
@@ -68,3 +70,5 @@ export default async function handler(
     res.status(500).json({ error: (err as Error).message });
   }
 }
+
+export default withDemo(_demoFixture, handler);
