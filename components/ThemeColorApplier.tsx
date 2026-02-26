@@ -34,11 +34,9 @@ function updateFavicon(bg: string) {
     link.rel = "icon";
     link.type = "image/svg+xml";
     document.head.appendChild(link);
-    console.log("[Favicon] Created new favicon element");
   }
   
   link.href = url;
-  console.log("[Favicon] Updated href, total icons:", document.querySelectorAll("link[rel='icon']").length);
 }
 
 export function ThemeColorApplier() {
@@ -63,9 +61,6 @@ export function ThemeColorApplier() {
 
     // Dynamic favicon - create immediately
     updateFavicon(color.accent);
-    
-    // Debug: log favicon count
-    console.log("[Favicon] Initial setup, icon count:", document.querySelectorAll("link[rel='icon']").length);
   }, []);
 
   // Update when theme changes
