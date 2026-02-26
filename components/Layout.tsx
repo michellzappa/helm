@@ -32,7 +32,9 @@ import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import { useCounts } from "@/lib/counts-context";
 import { useSettings } from "@/lib/settings-context";
+import { useKeyboardNav } from "@/hooks/use-keyboard-nav";
 import { SettingsModal } from "@/components/SettingsModal";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import type { SidebarCounts } from "@/lib/types";
 
 export const MENU_ITEMS: {
@@ -73,9 +75,18 @@ function LayoutInner({
   const { counts } = useCounts();
   const { settings } = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const visibleMenuItems = MENU_ITEMS.filter(item => (
     item.href === "/" || !settings.hiddenSidebarItems.includes(item.href)
   ));
+
+  // Keyboard navigation
+  useKeyboardNav({
+    onOpenSettings: () => setSettingsOpen(true),
+    onCloseSettings: () => setSettingsOpen(false),
+    settingsOpen,
+    onOpenShortcuts: () => setShortcutsOpen(true),
+  });
 
   // Close mobile sidebar on navigation
   useEffect(() => {
@@ -172,21 +183,30 @@ function LayoutInner({
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                tooltip="Settings"
+                tooltip="Settings (Esc)"
                 onClick={() => setSettingsOpen(true)}
                 className="w-full"
               >
                 <Settings className="h-4 w-4 shrink-0" />
                 <span className="truncate group-data-[collapsible=icon]:hidden">Settings</span>
+                <kbd className="ml-auto hidden group-data-[collapsible=icon]:hidden text-[10px] px-1.5 py-0.5 bg-muted rounded">Esc</kbd>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
+          <p className="text-[10px] text-muted-foreground text-center mt-2 px-2 group-data-[collapsible=icon]:hidden">
+            Press ? for shortcuts
+          </p>
         </SidebarFooter>
 
         <SettingsModal
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
           menuItems={MENU_ITEMS.map(({ href, label }) => ({ href, label }))}
+        />
+
+        <KeyboardShortcutsDialog
+          open={shortcutsOpen}
+          onOpenChange={setShortcutsOpen}
         />
 
         <SidebarRail />
