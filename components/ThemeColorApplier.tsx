@@ -16,14 +16,29 @@ const EYE_SVG = (bg: string) => `
 function updateFavicon(bg: string) {
   const svg = EYE_SVG(bg);
   const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-  let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+  
+  // Look for existing favicon by ID first, then by rel
+  let link = document.querySelector<HTMLLinkElement>("link#dynamic-favicon");
+  if (!link) {
+    link = document.querySelector<HTMLLinkElement>("link[rel='icon'][type='image/svg+xml']");
+  }
+  
+  // Remove any other icon links to prevent duplicates
+  document.querySelectorAll<HTMLLinkElement>("link[rel='icon']").forEach(el => {
+    if (el !== link) el.remove();
+  });
+  
   if (!link) {
     link = document.createElement("link");
+    link.id = "dynamic-favicon";
     link.rel = "icon";
+    link.type = "image/svg+xml";
     document.head.appendChild(link);
+    console.log("[Favicon] Created new favicon element");
   }
-  link.type = "image/svg+xml";
+  
   link.href = url;
+  console.log("[Favicon] Updated href, total icons:", document.querySelectorAll("link[rel='icon']").length);
 }
 
 export function ThemeColorApplier() {
@@ -48,6 +63,9 @@ export function ThemeColorApplier() {
 
     // Dynamic favicon - create immediately
     updateFavicon(color.accent);
+    
+    // Debug: log favicon count
+    console.log("[Favicon] Initial setup, icon count:", document.querySelectorAll("link[rel='icon']").length);
   }, []);
 
   // Update when theme changes
