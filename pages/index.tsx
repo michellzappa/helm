@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
@@ -391,7 +391,9 @@ function fmtRelativeNextRun(nextRunMs?: number) {
 }
 
 function UpcomingCronsCard() {
-  const { data: tasks = [], isStale } = useCachedRefresh<ScheduledTask[]>({
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { data: tasks, isStale } = useCachedRefresh<ScheduledTask[]>({
     cacheKey: "scheduled-tasks",
     fetcher: async () => {
       const r = await fetch("/api/scheduled-tasks");
@@ -400,8 +402,9 @@ function UpcomingCronsCard() {
       return d;
     },
   });
+  const displayTasks = mounted ? (tasks || []) : [];
 
-  const upcoming = (tasks || [])
+  const upcoming = displayTasks
     .filter(task => task.type === "cron" && task.enabled && !!task.nextRunAtMs && task.nextRunAtMs > Date.now())
     .sort((a, b) => (a.nextRunAtMs ?? 0) - (b.nextRunAtMs ?? 0));
   
@@ -421,14 +424,14 @@ function UpcomingCronsCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {(!tasks || tasks.length === 0) && (
+        {displayTasks.length === 0 && (
           <div className="space-y-2">
             {[0, 1, 2].map(i => (
               <div key={i} className="h-4 bg-muted rounded animate-pulse" style={{ width: `${80 - i * 10}%` }} />
             ))}
           </div>
         )}
-        {tasks && tasks.length > 0 && upcoming.length === 0 && (
+        {displayTasks.length > 0 && upcoming.length === 0 && (
           <p className="text-sm text-muted-foreground">No upcoming cron runs.</p>
         )}
         {upcoming.length > 0 && (
@@ -484,6 +487,9 @@ function MiniSparkline({ values }: { values: number[] }) {
 }
 
 function QuickAgentsCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  
   const { data: agents, isStale } = useCachedRefresh<OcAgent[]>({
     cacheKey: "agents-list",
     fetcher: async () => {
@@ -502,6 +508,7 @@ function QuickAgentsCard() {
   });
 
   const defaultId = summary?.defaultAgent ?? "main";
+  const displayAgents = mounted ? (agents || []) : [];
 
   return (
     <Card className={isStale ? "opacity-80" : ""}>
@@ -524,7 +531,7 @@ function QuickAgentsCard() {
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex flex-wrap gap-1.5">
-          {(agents || []).map((agent) => (
+          {displayAgents.map((agent) => (
             <span
               key={agent.id}
               title={`${agent.name}${agent.id === defaultId ? " (default)" : ""}`}
@@ -535,10 +542,10 @@ function QuickAgentsCard() {
               style={{ backgroundColor: "var(--theme-accent)", opacity: agent.sessionCount > 0 ? 1 : 0.4, borderColor: "transparent" }}
             />
           ))}
-          {(!agents || agents.length === 0) && <div className="h-3 w-20 rounded bg-muted animate-pulse" />}
+          {displayAgents.length === 0 && <div className="h-3 w-20 rounded bg-muted animate-pulse" />}
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">
-          {(agents || []).length} agents · default {defaultId}
+          {displayAgents.length} agents · default {defaultId}
         </p>
       </CardContent>
     </Card>
@@ -590,6 +597,8 @@ function ChannelsHealthCard() {
 }
 
 function TodaySpendCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { settings } = useSettings();
   const { data, isStale } = useCachedRefresh<CostHistoryData>({
     cacheKey: "cost-history",
@@ -600,10 +609,11 @@ function TodaySpendCard() {
       return d;
     },
   });
+  const displayData = mounted ? data : null;
 
-  const daily = data?.daily ?? [];
+  const daily = displayData?.daily ?? [];
   const points = daily.slice(-14).map((d) => d.cost);
-  const today = data?.summary.today ?? 0;
+  const today = displayData?.summary.today ?? 0;
   const yesterday = daily.length > 1 ? daily[daily.length - 2].cost : 0;
   const delta = today - yesterday;
   const symbol = settings.currency === "EUR" ? "€" : "$";
