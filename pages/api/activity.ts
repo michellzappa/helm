@@ -272,33 +272,43 @@ function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<Acti
         }
       }
 
-      // ── Telegram user exchange
-      if (sub.includes("telegram") && msg.includes("sendmessage ok")) {
-        dailyUser[date] = (dailyUser[date] ?? 0) + 1;
-        channelCounts["telegram"] = (channelCounts["telegram"] ?? 0) + 1;
-        hourly[localHour(ev.ts)]++;
-        totalEvents++;
-        continue;
-      }
+      // ── User-facing events (messages, tool calls, sessions)
+      const isUser =
+        (sub.includes("telegram") && (msg.includes("sendmessage ok") || msg.includes("inbound"))) ||
+        (sub.includes("whatsapp") && msg.includes("inbound message")) ||
+        (sub.includes("discord") && (msg.includes("sendmessage") || msg.includes("inbound"))) ||
+        (sub.includes("agent") && (msg.includes("tool start") || msg.includes("tool end"))) ||
+        (sub.includes("diagnostic") && (msg.includes("run registered") || msg.includes("lane enqueue"))) ||
+        msg.includes("user message") ||
+        msg.includes("assistant message");
 
-      // ── WhatsApp inbound (plain-text log only; "Inbound message +X -> +Y")
-      if (sub.includes("whatsapp") && msg.includes("inbound message") && msg.includes("->")) {
-        dailyUser[date] = (dailyUser[date] ?? 0) + 1;
-        channelCounts["whatsapp"] = (channelCounts["whatsapp"] ?? 0) + 1;
-        hourly[localHour(ev.ts)]++;
-        totalEvents++;
-        continue;
+      // ── Channel attribution
+      const isChannel =
+        sub.includes("telegram") || sub.includes("whatsapp") || sub.includes("discord") || sub.includes("signal") || sub.includes("slack");
+      if (isChannel) {
+        const ch = sub.includes("telegram") ? "telegram"
+          : sub.includes("whatsapp") ? "whatsapp"
+          : sub.includes("discord") ? "discord"
+          : sub.includes("signal") ? "signal"
+          : "slack";
+        channelCounts[ch] = (channelCounts[ch] ?? 0) + 1;
       }
 
       // ── System background events
-      if (
+      const isSystem =
         sub.includes("heartbeat") ||
         sub.includes("gmail-watcher") ||
         sub.includes("delivery-recovery") ||
         sub.includes("health-monitor") ||
         sub.includes("tailscale") ||
-        (sub.includes("cron") && (msg.includes("cron: started") || msg.includes("timer armed")))
-      ) {
+        sub.includes("plugins") ||
+        (sub.includes("cron") && (msg.includes("cron: started") || msg.includes("timer armed") || msg.includes("nextat")));
+
+      if (isUser) {
+        dailyUser[date] = (dailyUser[date] ?? 0) + 1;
+        hourly[localHour(ev.ts)]++;
+        totalEvents++;
+      } else if (isSystem) {
         dailySystem[date] = (dailySystem[date] ?? 0) + 1;
         totalEvents++;
       }
