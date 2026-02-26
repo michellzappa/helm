@@ -13,7 +13,7 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
     // Simple file system check for memory directory
     const fs = require("fs");
     const path = require("path");
-    const memoryPath = path.join(process.env.HOME || "/Users/botbot", ".openclaw/workspace/memory");
+    const memoryPath = path.join(process.env.HOME || "/tmp", ".openclaw/workspace/memory");
     
     let files: string[] = [];
     let sizeBytes = 0;
@@ -29,7 +29,7 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
     }
 
     // Also check MEMORY.md in workspace
-    const mainMemory = path.join(process.env.HOME || "/Users/botbot", ".openclaw/workspace/MEMORY.md");
+    const mainMemory = path.join(process.env.HOME || "/tmp", ".openclaw/workspace/MEMORY.md");
     let lastModified = Date.now();
     if (fs.existsSync(mainMemory)) {
       lastModified = fs.statSync(mainMemory).mtimeMs;
