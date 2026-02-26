@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
   Droplets, Wind, Network, ArrowUpRight, ArrowDownRight, AlertTriangle, Circle,
-  Bot, Radio, Euro, KeyRound, Calendar, Brain, Send, Cpu, Server, History, Zap, FolderOpen, Activity, Monitor, MessageSquare, Clock, Heart, Eye, EyeOff, GripVertical, X,
+  Bot, Radio, Euro, KeyRound, Calendar, Brain, Send, Cpu, Server, History, Zap, FolderOpen, Activity, Monitor, MessageSquare, Clock, Heart, Eye, EyeOff, GripVertical, X, ChevronUp, ChevronDown,
 } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import { useCachedRefresh } from "@/lib/cache-refresh";
@@ -1320,24 +1320,24 @@ function HeartbeatCard() {
 // ── Dashboard ─────────────────────────────────────────────────────────────
 
 const WIDGET_DEFINITIONS = [
-  { key: "quick-agents", label: "Agents", node: <QuickAgentsCard /> },
-  { key: "spend", label: "Spend", node: <SpendCard /> },
-  { key: "activity", label: "Activity", node: <ActivityCard /> },
   { key: "active-hours", label: "Active Hours", node: <ActiveHoursCard /> },
+  { key: "activity", label: "Activity", node: <ActivityCard /> },
   { key: "channels", label: "Channels", node: <ChannelsCard /> },
   { key: "credentials-status", label: "Credentials", node: <CredentialsStatusCard /> },
+  { key: "heartbeat", label: "Heartbeat", node: <HeartbeatCard /> },
   { key: "memory-activity", label: "Memory", node: <MemoryActivityCard /> },
   { key: "message-queue", label: "Messages", node: <MessageQueueCard /> },
   { key: "active-models", label: "Models", node: <ActiveModelsCard /> },
   { key: "connected-nodes", label: "Nodes", node: <ConnectedNodesCard /> },
+  { key: "quick-agents", label: "Agents", node: <QuickAgentsCard /> },
   { key: "active-sessions", label: "Sessions", node: <ActiveSessionsCard /> },
   { key: "skills-quick-access", label: "Skills", node: <SkillsQuickAccessCard /> },
-  { key: "workspaces-overview", label: "Workspaces", node: <WorkspacesOverviewCard /> },
-  { key: "weather", label: "Weather", node: <WeatherCard /> },
+  { key: "spend", label: "Spend", node: <SpendCard /> },
   { key: "system", label: "System", node: <SystemCard /> },
   { key: "tailscale", label: "Tailscale", node: <TailscaleCard /> },
   { key: "upcoming-crons", label: "Upcoming Crons", node: <UpcomingCronsCard /> },
-  { key: "heartbeat", label: "Heartbeat", node: <HeartbeatCard /> },
+  { key: "weather", label: "Weather", node: <WeatherCard /> },
+  { key: "workspaces-overview", label: "Workspaces", node: <WorkspacesOverviewCard /> },
 ];
 
 export default function Dashboard() {
@@ -1345,22 +1345,23 @@ export default function Dashboard() {
   const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
   
-  // Load saved order/visibility from localStorage or use defaults
+  // Load saved order/visibility from localStorage or use defaults (alphabetical)
   const [widgetState, setWidgetState] = useState(() => {
+    const defaultOrder = WIDGET_DEFINITIONS.map(w => w.key).sort();
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('helm-dashboard-widgets');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           return {
-            order: parsed.order || WIDGET_DEFINITIONS.map(w => w.key),
+            order: parsed.order || defaultOrder,
             hidden: new Set(parsed.hidden || []),
           };
         } catch {}
       }
     }
     return {
-      order: WIDGET_DEFINITIONS.map(w => w.key),
+      order: defaultOrder,
       hidden: new Set<string>(),
     };
   });
@@ -1497,7 +1498,7 @@ export default function Dashboard() {
                           className="p-1 rounded hover:bg-muted disabled:opacity-30"
                           title="Move up"
                         >
-                          <ArrowUpRight className="h-3 w-3 rotate-[-45deg]" />
+                          <ChevronUp className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => moveWidget(key, 'down')}
@@ -1505,7 +1506,7 @@ export default function Dashboard() {
                           className="p-1 rounded hover:bg-muted disabled:opacity-30"
                           title="Move down"
                         >
-                          <ArrowUpRight className="h-3 w-3 rotate-[45deg]" />
+                          <ChevronDown className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
