@@ -1274,7 +1274,7 @@ export default function Dashboard() {
   const { settings } = useSettings();
   const cards = [
     { key: "quick-agents", visible: true, node: <QuickAgentsCard /> },
-    { key: "activities", visible: true, node: <ActivitiesCard /> },
+    { key: "activity", visible: true, node: <ActivityCard /> },
     { key: "active-hours", visible: true, node: <ActiveHoursCard /> },
     { key: "channels", visible: true, node: <ChannelsCard /> },
     { key: "today-spend", visible: true, node: <TodaySpendCard /> },
