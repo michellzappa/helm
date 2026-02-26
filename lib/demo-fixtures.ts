@@ -4,7 +4,8 @@
  * Used for safe screenshots / public README images.
  */
 
-const NOW = Date.now();
+// Fixed timestamp to avoid SSR/client hydration mismatch from Date.now()
+const NOW = new Date("2026-02-26T12:00:00Z").getTime();
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
 

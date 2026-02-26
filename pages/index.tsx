@@ -419,6 +419,8 @@ function fmtRelativeNextRun(nextRunMs?: number) {
 }
 
 function UpcomingCronsCard() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { data: tasks, isRefreshing } = useCachedRefresh<ScheduledTask[]>({
     cacheKey: "scheduled-tasks",
     fetcher: async () => {
@@ -428,7 +430,7 @@ function UpcomingCronsCard() {
       return d;
     },
   });
-  const displayTasks = tasks || [];
+  const displayTasks = mounted ? (tasks || []) : [];
 
   const upcoming = displayTasks
     .filter(task => task.type === "cron" && task.enabled && !!task.nextRunAtMs && task.nextRunAtMs > Date.now())
