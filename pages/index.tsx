@@ -272,7 +272,11 @@ function TailscaleCard() {
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <CardTitle className="text-sm font-medium">Tailscale</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              <Link href="/nodes" className="hover:underline">
+                Tailscale
+              </Link>
+            </CardTitle>
             {ts && (
               <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
                 {ts.self.ip}
@@ -351,7 +355,11 @@ function ActivitySummaryCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">24h Activity</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/activities" className="hover:underline">
+            24h Activity
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-3xl font-bold tabular-nums">
@@ -362,9 +370,6 @@ function ActivitySummaryCard() {
           <p><span className="tabular-nums text-foreground">{messages ?? "…"}</span> messages</p>
           <p><span className="tabular-nums text-foreground">{cronRuns ?? "…"}</span> cron runs</p>
         </div>
-        <Link href="/activities" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          View activity timeline
-        </Link>
       </CardContent>
     </Card>
   );
@@ -411,7 +416,11 @@ function UpcomingCronsCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Upcoming Crons</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/crons" className="hover:underline">
+            Upcoming Crons
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {error && <p className="text-sm text-muted-foreground">Unavailable</p>}
@@ -499,7 +508,11 @@ function QuickAgentsCard() {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Quick Agents</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            <Link href="/agents" className="hover:underline">
+              Quick Agents
+            </Link>
+          </CardTitle>
           {summary && summary.recentErrors > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 tabular-nums">
               {summary.recentErrors} err
@@ -525,9 +538,6 @@ function QuickAgentsCard() {
         <p className="text-[11px] text-muted-foreground tabular-nums">
           {agents.length} agents · default {defaultId}
         </p>
-        <Link href="/agents" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open agents →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -549,7 +559,11 @@ function ChannelsHealthCard() {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Channels Health</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            <Link href="/channels" className="hover:underline">
+              Channels Health
+            </Link>
+          </CardTitle>
           <span className="text-xs tabular-nums">{data ? `${data.overallPct}%` : "…"}</span>
         </div>
       </CardHeader>
@@ -568,9 +582,6 @@ function ChannelsHealthCard() {
         <p className="text-[11px] text-muted-foreground">
           {(data?.channels.length ?? 0)} channels monitored
         </p>
-        <Link href="/channels" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open channels →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -599,7 +610,11 @@ function TodaySpendCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Today Spend</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/costs" className="hover:underline">
+            Today Spend
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
         <div className="flex items-end justify-between">
@@ -610,9 +625,6 @@ function TodaySpendCard() {
           </span>
         </div>
         <MiniSparkline values={points} />
-        <Link href="/costs" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open costs →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -640,7 +652,11 @@ function CredentialsStatusCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Credentials</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/credentials" className="hover:underline">
+            Credentials
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex items-center gap-3">
@@ -660,9 +676,6 @@ function CredentialsStatusCard() {
             <p className="tabular-nums"><span className="text-foreground font-medium">{expiring}</span> soon</p>
           </div>
         </div>
-        <Link href="/credentials" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open credentials →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -685,7 +698,11 @@ function MemoryActivityCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Memory Activity</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/memory" className="hover:underline">
+            Memory Activity
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-2 flex items-end gap-0.5 rounded overflow-hidden bg-muted">
@@ -704,9 +721,6 @@ function MemoryActivityCard() {
             <span key={topic} className="text-[10px] px-1.5 py-0.5 rounded bg-muted max-w-[8rem] truncate">{topic}</span>
           ))}
         </div>
-        <Link href="/memory" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open memory →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -732,7 +746,11 @@ function MessageQueueCard() {
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">Message Queue</CardTitle>
+          <CardTitle className="text-sm font-medium">
+            <Link href="/messages" className="hover:underline">
+              Message Queue
+            </Link>
+          </CardTitle>
           {stuck > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 inline-flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" /> {stuck}
@@ -745,9 +763,6 @@ function MessageQueueCard() {
           <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: "var(--theme-accent)", opacity: queued > 15 ? 0.6 : 1 }} />
         </div>
         <p className="text-xs text-muted-foreground tabular-nums">{queued} queued</p>
-        <Link href="/messages" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open queue →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -774,7 +789,11 @@ function ActiveModelsCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Active Models</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/models" className="hover:underline">
+            Active Models
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {top.map((model) => (
@@ -786,9 +805,6 @@ function ActiveModelsCard() {
           </div>
         ))}
         {top.length === 0 && <div className="h-10 rounded bg-muted animate-pulse" />}
-        <Link href="/models" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open models →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -818,7 +834,11 @@ function ConnectedNodesCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Connected Nodes</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/nodes" className="hover:underline">
+            Connected Nodes
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="grid grid-cols-8 gap-1">
@@ -832,9 +852,6 @@ function ConnectedNodesCard() {
           {statuses.length === 0 && <div className="col-span-8 h-4 rounded bg-muted animate-pulse" />}
         </div>
         <p className="text-xs text-muted-foreground tabular-nums">{active}/{nodes.length} active now</p>
-        <Link href="/nodes" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open nodes →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -866,7 +883,11 @@ function ActiveSessionsCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/sessions" className="hover:underline">
+            Active Sessions
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         <p className="text-2xl font-bold tabular-nums">{sessions.length}</p>
@@ -876,9 +897,6 @@ function ActiveSessionsCard() {
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">{active} active · {idle} idle</p>
         <MiniSparkline values={points} />
-        <Link href="/sessions" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open sessions →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -906,7 +924,11 @@ function SkillsQuickAccessCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Skills Quick Access</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/skills" className="hover:underline">
+            Skills Quick Access
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-2 rounded bg-muted overflow-hidden flex">
@@ -917,9 +939,6 @@ function SkillsQuickAccessCard() {
         <p className="text-[11px] text-muted-foreground tabular-nums">
           W {counts.workspace} · E {counts.extension} · G {counts.global}
         </p>
-        <Link href="/skills" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open skills →
-        </Link>
       </CardContent>
     </Card>
   );
@@ -949,7 +968,11 @@ function WorkspacesOverviewCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium">Workspaces</CardTitle>
+        <CardTitle className="text-sm font-medium">
+          <Link href="/workspaces" className="hover:underline">
+            Workspaces
+          </Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {top.map((ws) => (
@@ -964,9 +987,6 @@ function WorkspacesOverviewCard() {
           </div>
         ))}
         {top.length === 0 && <div className="h-12 rounded bg-muted animate-pulse" />}
-        <Link href="/workspaces" className="text-xs hover:underline" style={{ color: "var(--theme-accent)" }}>
-          Open workspaces →
-        </Link>
       </CardContent>
     </Card>
   );
