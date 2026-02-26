@@ -47,7 +47,7 @@ export const MENU_ITEMS: {
   { href: "/activities",     label: "Activities",     icon: Activity                            },
   { href: "/agents",         label: "Agents",         icon: Bot,         countKey: "agents"      },
   { href: "/channels",       label: "Channels",       icon: Radio,       countKey: "channels"    },
-  { href: "/costs",          label: "Costs",          icon: Euro                                },
+  { href: "/spend",          label: "Spend",          icon: Euro                                },
   { href: "/credentials",    label: "Credentials",    icon: KeyRound,    countKey: "credentials" },
   { href: "/crons",           label: "Crons",          icon: Calendar,    countKey: "scheduled"   },
   { href: "/heartbeats",      label: "Heartbeats",     icon: Heart                           },

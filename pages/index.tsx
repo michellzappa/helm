@@ -539,7 +539,7 @@ function QuickAgentsCard() {
   );
 }
 
-function TodaySpendCard() {
+function SpendCard() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const { settings } = useSettings();
@@ -555,14 +555,13 @@ function TodaySpendCard() {
   const displayData = mounted ? data : null;
 
   const daily = displayData?.daily ?? [];
-  const last14 = daily.slice(-14);
-  const points = last14.map((d) => d.cost);
-  const fmtShort = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en", { month: "short", day: "numeric" });
-  const spendLabels = last14.length > 0 ? [fmtShort(last14[0].date), fmtShort(last14[last14.length - 1].date)] : [];
+  const last7 = daily.slice(-7);
+  const maxCost = Math.max(...last7.map(d => d.cost), 1);
   const today = displayData?.summary.today ?? 0;
   const yesterday = daily.length > 1 ? daily[daily.length - 2].cost : 0;
   const delta = today - yesterday;
   const symbol = settings.currency === "EUR" ? "€" : "$";
+  const fmtDay = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en", { weekday: "short" });
 
   return (
     <Card className={isRefreshing ? "opacity-80" : ""}>
@@ -570,8 +569,8 @@ function TodaySpendCard() {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <CardTitle className="text-sm font-medium">
-              <Link href="/costs" className="hover:underline">
-                Today Spend
+              <Link href="/spend" className="hover:underline">
+                Spend
               </Link>
             </CardTitle>
           </div>
@@ -581,7 +580,7 @@ function TodaySpendCard() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-2">
         <div className="flex items-end justify-between">
           <p className="text-3xl leading-none font-bold tabular-nums">{symbol}{today.toFixed(2)}</p>
           <span className={cn("text-xs inline-flex items-center gap-0.5 tabular-nums", delta >= 0 ? "text-red-500" : "text-green-600")}>
@@ -589,7 +588,34 @@ function TodaySpendCard() {
             {symbol}{Math.abs(delta).toFixed(2)}
           </span>
         </div>
-        <MiniSparkline values={points} labels={spendLabels} />
+        <div className="flex items-end gap-1 h-14">
+          {last7.map((day, i) => {
+            const pct = (day.cost / maxCost) * 100;
+            const isToday = i === last7.length - 1;
+            return (
+              <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full relative" style={{ height: "44px" }}>
+                  <div
+                    className="absolute bottom-0 w-full rounded-sm"
+                    title={`${fmtDay(day.date)}: ${symbol}${day.cost.toFixed(2)}`}
+                    style={{
+                      height: `${Math.max(pct, 4)}%`,
+                      backgroundColor: "var(--theme-accent)",
+                      opacity: isToday ? 1 : 0.5,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-1">
+          {last7.map((day) => (
+            <span key={day.date} className="flex-1 text-center text-[9px] text-muted-foreground/50">
+              {fmtDay(day.date).slice(0, 2)}
+            </span>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
@@ -1185,10 +1211,10 @@ export default function Dashboard() {
   const { settings } = useSettings();
   const cards = [
     { key: "quick-agents", visible: true, node: <QuickAgentsCard /> },
+    { key: "spend", visible: true, node: <SpendCard /> },
     { key: "activity", visible: true, node: <ActivityCard /> },
     { key: "active-hours", visible: true, node: <ActiveHoursCard /> },
     { key: "channels", visible: true, node: <ChannelsCard /> },
-    { key: "today-spend", visible: true, node: <TodaySpendCard /> },
     { key: "credentials-status", visible: true, node: <CredentialsStatusCard /> },
     { key: "memory-activity", visible: true, node: <MemoryActivityCard /> },
     { key: "message-queue", visible: true, node: <MessageQueueCard /> },

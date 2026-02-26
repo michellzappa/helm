@@ -81,8 +81,8 @@ export default function CostsPage() {
       <div className="space-y-6 sm:space-y-8">
         <div>
             <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-4xl font-bold">Costs</h1>
-              <PageInfo page="costs" />
+            <h1 className="text-2xl sm:text-4xl font-bold">Spend</h1>
+              <PageInfo page="spend" />
             </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {loading ? "…" : `${fmtCost(convertCost(summary.allTime), currencyInfo.symbol)} total · API-equivalent`}

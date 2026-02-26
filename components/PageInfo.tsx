@@ -16,8 +16,8 @@ export const PAGE_INFO: Record<string, string> = {
     "Agents are isolated AI personas with their own workspace, model, skills, and channel bindings. Each agent runs independently and can be configured for different tasks.",
   channels:
     "Channels connect agents to messaging platforms — Telegram, WhatsApp, Discord, Signal, etc. Each channel defines DM/group policies, allowlists, and streaming behavior.",
-  costs:
-    "Token usage and estimated API costs across all sessions. Costs are calculated from Anthropic's published pricing and converted to your preferred currency.",
+  spend:
+    "Token usage and estimated API spend across all sessions. Costs are calculated from Anthropic's published pricing and converted to your preferred currency.",
   credentials:
     "API keys, OAuth tokens, and service credentials that OpenClaw uses to connect to external services. Helm reads these — it doesn't create or modify them.",
   crons:
