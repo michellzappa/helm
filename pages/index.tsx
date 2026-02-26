@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
-import { ActivityCharts } from "@/components/ActivityCharts";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sun, Cloud, CloudDrizzle, CloudRain, CloudSnow, CloudLightning,
@@ -1232,8 +1232,7 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Activity charts + log */}
-        <ActivityCharts />
+
       </div>
     </Layout>
   );
