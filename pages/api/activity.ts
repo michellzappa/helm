@@ -1,22 +1,33 @@
 import os from "os";
-import { readFileSync, existsSync, readdirSync } from "fs";
-import { readFile } from "fs/promises";
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "fs";
 import { join } from "path";
+import { createInterface } from "readline";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { activity as _demoFixture } from "../../lib/demo-fixtures";
+import { getOrFetch } from "../../lib/server-cache";
 
 const HOME = os.homedir();
 const TZ = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+const LOOKBACK_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const CACHE_TTL_MS = 120_000;
+const CACHE_KEY = "api:activity:session-jsonl:v1";
+
+const SESSIONS_DIR = join(HOME, ".openclaw/agents/main/sessions");
+const SESSIONS_INDEX_PATH = join(SESSIONS_DIR, "sessions.json");
+const CRON_JOBS_PATH = join(HOME, ".openclaw/cron/jobs.json");
+
+const CHANNELS = ["telegram", "whatsapp", "discord", "signal", "slack"] as const;
 
 export interface DayBucket {
-  date: string;   // YYYY-MM-DD
+  date: string;
   user: number;
   system: number;
 }
 
 export interface ErrorEntry {
-  tsMs: number;       // Unix ms
+  tsMs: number;
   level: "warn" | "error";
   subsystem: string;
   message: string;
@@ -29,341 +40,236 @@ export interface ActivityData {
   cron: { success: number; fail: number; total: number };
   totalEvents: number;
   logDays: number;
-  logSource: string;   // which log path was used (for debugging)
+  logSource: string;
   errors: ErrorEntry[];
 }
 
-const EMPTY: ActivityData = {
-  daily: [],
-  hourly: new Array(24).fill(0),
-  channels: [],
-  cron: { success: 0, fail: 0, total: 0 },
-  totalEvents: 0,
-  logDays: 0,
-  logSource: "none",
-  errors: [],
-};
-
-// ── Log path discovery ─────────────────────────────────────────────────────
-// Collects ALL available log sources; caller deduplicates by date.
-interface LogSource {
-  path: string;
-  datesOwned: Set<string> | null; // null = multi-day file (legacy redirect)
-}
-
-function discoverLogSources(): { sources: LogSource[]; label: string } {
-  const sources: LogSource[] = [];
-  const labels: string[] = [];
-
-  // 1. Custom path from openclaw.json
-  try {
-    const cfg = JSON.parse(readFileSync(join(HOME, ".openclaw/openclaw.json"), "utf-8"));
-    if (cfg.logging?.file && existsSync(cfg.logging.file)) {
-      sources.push({ path: cfg.logging.file, datesOwned: null });
-      labels.push(cfg.logging.file);
-    }
-  } catch {}
-
-  // 2. Default: /tmp/openclaw/openclaw-YYYY-MM-DD.log (date-rotated JSONL)
-  const tmpDir = "/tmp/openclaw";
-  if (existsSync(tmpDir)) {
-    const files = readdirSync(tmpDir)
-      .filter(f => /^openclaw-\d{4}-\d{2}-\d{2}\.log$/.test(f))
-      .sort(); // oldest first
-    for (const f of files) {
-      const dateMatch = f.match(/openclaw-(\d{4}-\d{2}-\d{2})\.log/);
-      const path = join(tmpDir, f);
-      if (dateMatch && existsSync(path)) {
-        sources.push({ path, datesOwned: new Set([dateMatch[1]]) });
-      }
-    }
-    if (files.length) labels.push(tmpDir);
-  }
-
-  // 3. Legacy: LaunchAgent stdout redirect (multi-day, fills gaps)
-  const legacy = join(HOME, ".openclaw/logs/gateway.log");
-  if (existsSync(legacy)) {
-    sources.push({ path: legacy, datesOwned: null });
-    labels.push(legacy);
-  }
-
-  return { sources, label: labels.join(" + ") || "none" };
-}
-
-// ── Timestamp + message extraction (handles both formats) ──────────────────
-const TS_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))/;
-
-interface LogEvent {
-  ts: Date;
-  subsystem: string;   // e.g. "gateway/channels/telegram"
-  message: string;     // primary message text
-  level?: "warn" | "error";
-}
-
-// Extract errorMessage= value from plain-text log lines
-function extractErrorMessage(text: string): string {
-  const m = text.match(/errorMessage=(.+?)(?:\s+conn=|\s+channel=|\s+error=|$)/);
-  return m ? m[1].trim() : text;
-}
-
-function extractEvent(line: string): LogEvent | null {
-  if (!line.trim()) return null;
-
-  // JSONL format
-  if (line.startsWith("{")) {
-    try {
-      const d = JSON.parse(line);
-      const ts = new Date(d.time);
-      if (isNaN(ts.getTime())) return null;
-
-      // Determine level from _meta first (needed to decide field mapping)
-      let level: LogEvent["level"];
-      const lvlName: string = d._meta?.logLevelName ?? "";
-      if (lvlName === "ERROR" || (d._meta?.logLevelId ?? 0) >= 5) level = "error";
-      else if (lvlName === "WARN" || (d._meta?.logLevelId ?? 0) === 4) level = "warn";
-
-      // d["0"] is either:
-      //   a) JSON string like '{"subsystem":"gateway/ws"}' (INFO/WARN entries)
-      //   b) A plain error message string (ERROR entries, or entries without subsystem wrapper)
-      let subsystem = "";
-      let message = "";
-
-      let field0Parsed: Record<string, unknown> | null = null;
-      try { field0Parsed = JSON.parse(d["0"]); } catch {}
-
-      if (field0Parsed?.subsystem) {
-        // Case (a): d["0"] is a subsystem wrapper, d["1"]/d["2"] has the message
-        subsystem = String(field0Parsed.subsystem);
-        if (typeof d["1"] === "string" && d["1"]) {
-          message = d["1"];
-        } else if (typeof d["1"] === "object" && d["1"] !== null) {
-          const obj = d["1"] as Record<string, unknown>;
-          if (obj.errorMessage) message = String(obj.errorMessage);
-          else if (obj.cause) message = String(obj.cause);
-          else message = JSON.stringify(obj);
-        }
-        // d["2"] often has a cleaner summary string (e.g. "closed before connect conn=...")
-        if (typeof d["2"] === "string" && d["2"].length > 0 && d["2"].length < 300) {
-          message = d["2"];
-        }
-      } else {
-        // Case (b): d["0"] is the actual message; subsystem not available in this entry
-        message = typeof d["0"] === "string" ? d["0"] : JSON.stringify(d["0"] ?? "");
-        subsystem = "";
-      }
-
-      return { ts, subsystem, message, level };
-    } catch { return null; }
-  }
-
-  // Plain-text format: "2026-02-11T06:57:28.806Z [subsystem] message..."
-  const tsMatch = line.match(TS_RE);
-  if (!tsMatch) return null;
-  const ts = new Date(tsMatch[1]);
-  if (isNaN(ts.getTime())) return null;
-  const rest = line.slice(tsMatch[0].length).trim();
-  const tagMatch = rest.match(/^\[([^\]]+)\]\s*(.*)/);
-  const subsystem = tagMatch ? tagMatch[1] : "";
-  const message = tagMatch ? tagMatch[2] : rest;
-  // Detect errors in plain-text: lines with ✗ or errorCode=
-  let level: LogEvent["level"];
-  if (message.includes("✗") || message.includes("errorCode=")) level = "error";
-  else if (message.toLowerCase().includes("warn")) level = "warn";
-  return { ts, subsystem, message: level === "error" ? extractErrorMessage(message) : message, level };
-}
-
-// ── Date/hour helpers ──────────────────────────────────────────────────────
 function localDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   }).format(date);
 }
 
 function localHour(date: Date): number {
   const parts = new Intl.DateTimeFormat("en", {
-    timeZone: TZ, hour: "numeric", hour12: false,
+    timeZone: TZ,
+    hour: "numeric",
+    hour12: false,
   }).formatToParts(date);
-  return parseInt(parts.find(p => p.type === "hour")?.value ?? "0") % 24;
+  return parseInt(parts.find((part) => part.type === "hour")?.value ?? "0", 10) % 24;
 }
 
-// ── Cron stats from jobs.json (more reliable than log parsing) ─────────────
-async function cronStats(): Promise<{ success: number; fail: number; total: number }> {
+function buildDailyBuckets(nowMs: number): { daily: DayBucket[]; dateToIndex: Map<string, number> } {
+  const daily: DayBucket[] = Array.from({ length: LOOKBACK_DAYS }, (_, i) => {
+    const dayMs = nowMs - (LOOKBACK_DAYS - 1 - i) * DAY_MS;
+    return { date: localDate(new Date(dayMs)), user: 0, system: 0 };
+  });
+  const dateToIndex = new Map<string, number>();
+  daily.forEach((entry, index) => dateToIndex.set(entry.date, index));
+  return { daily, dateToIndex };
+}
+
+function channelLabel(name: string): string {
+  if (name === "whatsapp") return "WhatsApp";
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function deriveChannels(): { name: string; label: string; count: number }[] {
+  if (!existsSync(SESSIONS_INDEX_PATH)) return [];
+
   try {
-    const raw = await readFile(join(HOME, ".openclaw/cron/jobs.json"), "utf-8");
-    const jobs: any[] = JSON.parse(raw).jobs ?? [];
-    let success = 0, fail = 0;
+    const parsed = JSON.parse(readFileSync(SESSIONS_INDEX_PATH, "utf-8")) as unknown;
+    const keys = new Set<string>();
+
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray((parsed as { sessions?: unknown }).sessions)
+    ) {
+      for (const entry of (parsed as { sessions: unknown[] }).sessions) {
+        const key = (entry as { key?: unknown })?.key;
+        if (typeof key === "string") keys.add(key);
+      }
+    } else if (parsed && typeof parsed === "object") {
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof value === "object" && value !== null && "sessionId" in value) {
+          keys.add(key);
+        }
+      }
+    }
+
+    const counts: Record<string, number> = {};
+    for (const key of keys) {
+      for (const channel of CHANNELS) {
+        if (key.includes(`${channel}:`)) {
+          counts[channel] = (counts[channel] ?? 0) + 1;
+          break;
+        }
+      }
+    }
+
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, label: channelLabel(name), count }))
+      .sort((a, b) => b.count - a.count);
+  } catch {
+    return [];
+  }
+}
+
+function cronStats(): { success: number; fail: number; total: number } {
+  if (!existsSync(CRON_JOBS_PATH)) return { success: 0, fail: 0, total: 0 };
+
+  try {
+    const parsed = JSON.parse(readFileSync(CRON_JOBS_PATH, "utf-8")) as {
+      jobs?: Array<{ state?: { lastStatus?: string } }>;
+    };
+    const jobs = Array.isArray(parsed.jobs) ? parsed.jobs : [];
+
+    let success = 0;
+    let fail = 0;
+
     for (const job of jobs) {
-      const status = job.state?.lastRunStatus ?? job.state?.lastStatus;
+      const status = job.state?.lastStatus;
       if (status === "ok") success++;
       else if (status === "error" || status === "failed") fail++;
     }
+
     return { success, fail, total: jobs.length };
-  } catch { return { success: 0, fail: 0, total: 0 }; }
-}
-
-const MAX_ERRORS = 200;
-const MAX_WARNS  = 100;
-
-// High-volume, low-signal WARN patterns to suppress (WebSocket connection lifecycle noise)
-const WARN_NOISE_PREFIXES = [
-  "unauthorized",          // repeated auth failures from misconfigured nodes
-  "closed before connect", // WS handshake abandon
-  "closed ",               // generic WS close frames
-  "proxy ",                // reverse-proxy forwarding noise
-];
-
-function isNoisyWarn(entry: ErrorEntry): boolean {
-  if (entry.level !== "warn") return false;
-  const msg = entry.message.toLowerCase();
-  return WARN_NOISE_PREFIXES.some(p => msg.startsWith(p));
-}
-
-// ── Main parser ────────────────────────────────────────────────────────────
-function parseLogSources(sources: LogSource[]): Omit<ActivityData, "cron" | "logSource"> {
-  // Build set of dates owned by specific-date sources (to avoid double-counting)
-  const ownedDates = new Set<string>();
-  for (const s of sources) {
-    if (s.datesOwned) s.datesOwned.forEach(d => ownedDates.add(d));
+  } catch {
+    return { success: 0, fail: 0, total: 0 };
   }
-  return parseLogPaths(sources, ownedDates);
 }
 
-function parseLogPaths(sources: LogSource[], ownedDates: Set<string>): Omit<ActivityData, "cron" | "logSource"> {
-  const now = new Date();
-  const cutoff = localDate(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000));
+interface SessionStats {
+  daily: DayBucket[];
+  hourly: number[];
+  totalEvents: number;
+  logDays: number;
+  logSource: string;
+}
 
-  const dailyUser: Record<string, number> = {};
-  const dailySystem: Record<string, number> = {};
+async function collectSessionStats(): Promise<SessionStats> {
+  const nowMs = Date.now();
+  const cutoffMs = nowMs - LOOKBACK_DAYS * DAY_MS;
+  const { daily, dateToIndex } = buildDailyBuckets(nowMs);
   const hourly = new Array(24).fill(0);
-  const channelCounts: Record<string, number> = {};
+
+  if (!existsSync(SESSIONS_DIR)) {
+    return {
+      daily,
+      hourly,
+      totalEvents: 0,
+      logDays: 0,
+      logSource: `${SESSIONS_DIR} (missing)`,
+    };
+  }
+
+  const candidates = readdirSync(SESSIONS_DIR).filter((name) => name.endsWith(".jsonl"));
+  const recentFiles: string[] = [];
+
+  for (const name of candidates) {
+    const filePath = join(SESSIONS_DIR, name);
+    try {
+      const stat = statSync(filePath);
+      if (!stat.isFile()) continue;
+      if (stat.mtimeMs >= cutoffMs) recentFiles.push(filePath);
+    } catch {
+      // Ignore inaccessible files.
+    }
+  }
+
   let totalEvents = 0;
-  // Use a Map keyed by "tsMs|message" to deduplicate across sources
-  const errorMap = new Map<string, ErrorEntry>();
+  const activeDays = new Set<string>();
 
-  for (const source of sources) {
-    let content: string;
-    try { content = readFileSync(source.path, "utf-8"); } catch { continue; }
+  for (const filePath of recentFiles) {
+    const stream = createReadStream(filePath, { encoding: "utf-8" });
+    const rl = createInterface({ input: stream, crlfDelay: Infinity });
 
-    for (const line of content.split("\n")) {
-      const ev = extractEvent(line);
-      if (!ev) continue;
+    for await (const rawLine of rl) {
+      const line = rawLine.trim();
+      if (!line) continue;
 
-      const date = localDate(ev.ts);
-      if (date < cutoff) continue;
+      let event: {
+        type?: string;
+        timestamp?: string;
+        message?: { role?: string };
+      };
 
-      // Multi-day sources (legacy log) skip dates already covered by dated JSONL files
-      if (!source.datesOwned && ownedDates.has(date)) continue;
+      try {
+        event = JSON.parse(line) as {
+          type?: string;
+          timestamp?: string;
+          message?: { role?: string };
+        };
+      } catch {
+        continue;
+      }
 
-      const sub = ev.subsystem.toLowerCase();
-      const msg = ev.message.toLowerCase();
+      if (typeof event.timestamp !== "string") continue;
+      const tsMs = Date.parse(event.timestamp);
+      if (!Number.isFinite(tsMs) || tsMs < cutoffMs) continue;
 
-      // ── Collect warnings/errors
-      if (ev.level) {
-        const key = `${ev.ts.getTime()}|${ev.message.slice(0, 80)}`;
-        if (!errorMap.has(key)) {
-          // Strip leading "gateway/" prefix for brevity
-          const cleanSub = ev.subsystem.replace(/^gateway\//, "");
-          errorMap.set(key, {
-            tsMs: ev.ts.getTime(),
-            level: ev.level,
-            subsystem: cleanSub,
-            message: ev.message,
-          });
+      const ts = new Date(tsMs);
+      const day = localDate(ts);
+      const dayIndex = dateToIndex.get(day);
+      if (dayIndex === undefined) continue;
+
+      if (event.type === "message") {
+        const role = event.message?.role;
+        if (role === "user" || role === "assistant") {
+          daily[dayIndex].user++;
+          activeDays.add(day);
+          totalEvents++;
+        } else if (role === "system" || role === "tool") {
+          daily[dayIndex].system++;
+          activeDays.add(day);
+          totalEvents++;
         }
-      }
 
-      // ── User-facing events (messages, tool calls, sessions)
-      const isUser =
-        (sub.includes("telegram") && (msg.includes("sendmessage ok") || msg.includes("inbound"))) ||
-        (sub.includes("whatsapp") && msg.includes("inbound message")) ||
-        (sub.includes("discord") && (msg.includes("sendmessage") || msg.includes("inbound"))) ||
-        (sub.includes("agent") && (msg.includes("tool start") || msg.includes("tool end"))) ||
-        (sub.includes("diagnostic") && (msg.includes("run registered") || msg.includes("lane enqueue"))) ||
-        msg.includes("user message") ||
-        msg.includes("assistant message");
-
-      // ── Channel attribution
-      const isChannel =
-        sub.includes("telegram") || sub.includes("whatsapp") || sub.includes("discord") || sub.includes("signal") || sub.includes("slack");
-      if (isChannel) {
-        const ch = sub.includes("telegram") ? "telegram"
-          : sub.includes("whatsapp") ? "whatsapp"
-          : sub.includes("discord") ? "discord"
-          : sub.includes("signal") ? "signal"
-          : "slack";
-        channelCounts[ch] = (channelCounts[ch] ?? 0) + 1;
-      }
-
-      // ── System background events
-      const isSystem =
-        sub.includes("heartbeat") ||
-        sub.includes("gmail-watcher") ||
-        sub.includes("delivery-recovery") ||
-        sub.includes("health-monitor") ||
-        sub.includes("tailscale") ||
-        sub.includes("plugins") ||
-        (sub.includes("cron") && (msg.includes("cron: started") || msg.includes("timer armed") || msg.includes("nextat")));
-
-      if (isUser) {
-        dailyUser[date] = (dailyUser[date] ?? 0) + 1;
-        hourly[localHour(ev.ts)]++;
-        totalEvents++;
-      } else if (isSystem) {
-        dailySystem[date] = (dailySystem[date] ?? 0) + 1;
+        hourly[localHour(ts)]++;
+      } else if (event.type === "custom") {
+        daily[dayIndex].system++;
+        activeDays.add(day);
         totalEvents++;
       }
     }
   }
 
-  const daily: DayBucket[] = Array.from({ length: 30 }, (_, i) => {
-    const d = new Date(now.getTime() - (29 - i) * 24 * 60 * 60 * 1000);
-    const date = localDate(d);
-    return { date, user: dailyUser[date] ?? 0, system: dailySystem[date] ?? 0 };
-  });
-
-  const activeDates = new Set([...Object.keys(dailyUser), ...Object.keys(dailySystem)]);
-
-  const channels = Object.entries(channelCounts)
-    .map(([name, count]) => ({
-      name,
-      label: name === "telegram" ? "Telegram" : name === "whatsapp" ? "WhatsApp" : name,
-      count,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  // Separate errors and warns; filter noise; cap each independently; errors first
-  const allEntries = Array.from(errorMap.values())
-    .filter(e => !isNoisyWarn(e))
-    .sort((a, b) => b.tsMs - a.tsMs);
-
-  const errorEntries = allEntries.filter(e => e.level === "error").slice(0, MAX_ERRORS);
-  const warnEntries  = allEntries.filter(e => e.level === "warn").slice(0, MAX_WARNS);
-  const errors = [...errorEntries, ...warnEntries];
-
-  return { daily, hourly, channels, totalEvents, logDays: activeDates.size, errors };
+  return {
+    daily,
+    hourly,
+    totalEvents,
+    logDays: activeDays.size,
+    logSource: `${SESSIONS_DIR} (${recentFiles.length}/${candidates.length} files, mtime>=cutoff)`,
+  };
 }
 
-// ── Cache + handler ────────────────────────────────────────────────────────
-let _cache: { data: ActivityData; at: number } | null = null;
-const TTL = 60_000;
-
-async function handler(_req: NextApiRequest, res: NextApiResponse) {
-  const now = Date.now();
-  if (_cache && now - _cache.at < TTL) {
-    res.setHeader("Cache-Control", "s-maxage=60");
-    return res.json(_cache.data);
-  }
-
-  const { sources, label } = discoverLogSources();
-  const [logData, cron] = await Promise.all([
-    Promise.resolve(sources.length ? parseLogSources(sources) : { ...EMPTY }),
-    cronStats(),
+async function fetchActivityData(): Promise<ActivityData> {
+  const [sessionStats, channels, cron] = await Promise.all([
+    collectSessionStats(),
+    Promise.resolve(deriveChannels()),
+    Promise.resolve(cronStats()),
   ]);
 
-  const data: ActivityData = { ...logData, cron, logSource: label };
-  _cache = { data, at: now };
+  return {
+    daily: sessionStats.daily,
+    hourly: sessionStats.hourly,
+    channels,
+    cron,
+    totalEvents: sessionStats.totalEvents,
+    logDays: sessionStats.logDays,
+    logSource: sessionStats.logSource,
+    errors: [],
+  };
+}
+
+async function handler(_req: NextApiRequest, res: NextApiResponse<ActivityData>) {
+  const data = await getOrFetch<ActivityData>(CACHE_KEY, CACHE_TTL_MS, fetchActivityData);
   res.setHeader("Cache-Control", "s-maxage=60");
-  res.json(data);
+  res.status(200).json(data);
 }
 
 export default withDemo(_demoFixture, handler);
