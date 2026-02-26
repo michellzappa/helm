@@ -18,8 +18,10 @@ interface ScheduledTask {
   enabled: boolean;
   nextRunAtMs?: number;
   lastRunAtMs?: number;
-  workspace?: string;
+  agent?: string;
   model?: string;
+  status?: string;
+  lastError?: string;
 }
 
 // LaunchAgent label prefixes to include in the scheduled view.
@@ -74,9 +76,9 @@ export default async function handler(
             
             const enabled = exitCode === 0 || pid > 0;
             
-            // Extract workspace from LaunchAgent label (e.g., com.openclaw.gateway → gateway)
-            const workspaceMatch = label.match(/^com\.([a-z]+)\./);
-            const workspace = workspaceMatch ? workspaceMatch[1] : "system";
+            // Extract agent from LaunchAgent label
+            const agentMatch = label.match(/^com\.([a-z]+)\./);
+            const agent = agentMatch ? agentMatch[1] : "system";
             
             tasks.push({
               id: label,
@@ -84,7 +86,7 @@ export default async function handler(
               type: "launchagent",
               schedule: "LaunchAgent",
               enabled,
-              workspace,
+              agent,
             });
           }
         }
@@ -147,8 +149,17 @@ export default async function handler(
           enabled: job.enabled ?? true,
           nextRunAtMs,
           lastRunAtMs: job.state?.lastRunAtMs,
-          workspace: job.payload?.workspace || job.workspace || null,
+          agent: job.agentId || "default",
           model: modelDisplay,
+          status: (() => {
+            const s = job.state?.status || job.state?.lastStatus;
+            if (!job.enabled) return "disabled";
+            if (!s) return "idle";
+            // If job was edited after last run, stale error is no longer meaningful
+            if (s === "error" && job.updatedAtMs && job.state?.lastRunAtMs && job.updatedAtMs > job.state.lastRunAtMs) return "pending";
+            return s;
+          })(),
+          lastError: job.state?.error || job.state?.lastError || undefined,
         });
       }
     } catch (err) {

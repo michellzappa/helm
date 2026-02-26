@@ -16,8 +16,10 @@ interface ScheduledTask {
   enabled: boolean;
   nextRunAtMs?: number;
   lastRunAtMs?: number;
-  workspace?: string;
+  agent?: string;
   model?: string;
+  status?: string;
+  lastError?: string;
 }
 
 export default function ScheduledPage() {
@@ -119,9 +121,9 @@ export default function ScheduledPage() {
     <Layout>
       <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-2xl sm:text-4xl font-bold">Scheduled</h1>
+          <h1 className="text-2xl sm:text-4xl font-bold">Crons</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {counts?.scheduled ?? "…"} scheduled tasks
+            {counts?.scheduled ?? "…"} cron jobs
           </p>
         </div>
 
@@ -149,8 +151,8 @@ export default function ScheduledPage() {
                   </TableHead>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
-                      column="workspace"
-                      label="Workspace"
+                      column="agent"
+                      label="Agent"
                       sortBy={sortBy}
                       sortDir={sortDir}
                       onSort={handleSort}
@@ -195,7 +197,7 @@ export default function ScheduledPage() {
                   </TableHead>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
-                      column="enabled"
+                      column="status"
                       label="Status"
                       sortBy={sortBy}
                       sortDir={sortDir}
@@ -227,7 +229,7 @@ export default function ScheduledPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 capitalize">
-                          {task.workspace || "—"}
+                          {task.agent || "default"}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -259,21 +261,39 @@ export default function ScheduledPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`text-xs px-2 py-1 rounded font-medium ${
-                            task.enabled
-                              ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200"
-                              : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400"
-                          }`}
-                        >
-                          {task.type === "cron"
-                            ? task.enabled
-                              ? "Active"
-                              : "Disabled"
-                            : task.enabled
-                            ? "Running"
-                            : "Stopped"}
-                        </span>
+                        {(() => {
+                          const status = task.status || (task.enabled ? "ok" : "disabled");
+                          const styles: Record<string, string> = {
+                            ok: "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200",
+                            error: "bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200",
+                            pending: "bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200",
+                            idle: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+                            disabled: "bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500",
+                          };
+                          const labels: Record<string, string> = {
+                            ok: "OK",
+                            error: "Error",
+                            pending: "Pending",
+                            idle: "Idle",
+                            disabled: "Disabled",
+                          };
+                          // LaunchAgents: keep simple Running/Stopped
+                          if (task.type === "launchagent") {
+                            return (
+                              <span className={`text-xs px-2 py-1 rounded font-medium ${task.enabled ? styles.ok : styles.disabled}`}>
+                                {task.enabled ? "Running" : "Stopped"}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span
+                              className={`text-xs px-2 py-1 rounded font-medium ${styles[status] || styles.idle}`}
+                              title={task.lastError || undefined}
+                            >
+                              {labels[status] || status}
+                            </span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         {task.type === "cron" && (() => {

@@ -1,6 +1,8 @@
 import Layout from "@/components/Layout";
 import { useState, useEffect } from "react";
-import { useCounts } from "@/lib/counts-context";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortableTableHead } from "@/components/SortableTableHead";
+import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { Database, BarChart2, ShoppingBag, Globe, Cpu, Radio, Settings, KeyRound } from "lucide-react";
 import type { Credential } from "@/lib/types";
 
@@ -28,10 +30,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function CredentialsPage() {
-  const { counts } = useCounts();
   const [creds, setCreds] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
   useEffect(() => {
     fetch("/api/credentials")
@@ -40,22 +43,21 @@ export default function CredentialsPage() {
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
-  // Derive categories dynamically from API data
-  const byCategory = creds.reduce<Record<string, Credential[]>>((acc, c) => {
-    (acc[c.category] = acc[c.category] || []).push(c);
-    return acc;
-  }, {});
-  // Sort categories: known order first, then alphabetical
-  const PREFERRED_ORDER = ["Channels", "System", "Credentials", "Databases", "Analytics", "Commerce", "Google", "AI Tools"];
-  const categories = Object.keys(byCategory).sort((a, b) => {
-    const ai = PREFERRED_ORDER.indexOf(a), bi = PREFERRED_ORDER.indexOf(b);
-    if (ai !== -1 && bi !== -1) return ai - bi;
-    if (ai !== -1) return -1;
-    if (bi !== -1) return 1;
-    return a.localeCompare(b);
-  });
-
   const okCount = creds.filter(c => c.status === "ok").length;
+  const tableCreds = creds.map((cred) => ({
+    ...cred,
+    statusSort: STATUS_LABEL[cred.status],
+  }));
+  const sortedCreds = sortData(tableCreds, sortBy, sortDir);
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDir(getNextSortDirection(sortDir));
+    } else {
+      setSortBy(column);
+      setSortDir("asc");
+    }
+  };
 
   return (
     <Layout>
@@ -69,39 +71,109 @@ export default function CredentialsPage() {
 
         {error && <div className="bg-red-50 dark:bg-red-900 border border-red-200 text-red-700 px-4 py-3 rounded">Error: {error}</div>}
 
-        {!loading && (
-          <div className="space-y-6">
-            {categories.map(cat => (
-              <div key={cat}>
-                <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-                  {(() => { const Icon = CATEGORY_ICON[cat] ?? Settings; return <Icon className="h-3.5 w-3.5" />; })()}
-                  {cat}
-                </h2>
-                <div className="rounded-lg border overflow-hidden">
-                  <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {byCategory[cat].map(cred => (
-                      <div key={cred.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <div className="min-w-0">
-                          <span className="text-sm font-medium">{cred.name}</span>
-                          {cred.note && (
-                            <span className="ml-2 text-xs text-muted-foreground">— {cred.note}</span>
+        {loading ? (
+          <p className="text-muted-foreground">Loading credentials...</p>
+        ) : (
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="name"
+                      label="Credential"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="category"
+                      label="Category"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="file"
+                      label="File"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="keys"
+                      label="Keys"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="statusSort"
+                      label="Status"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedCreds.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      No credentials found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedCreds.map((cred) => {
+                    const Icon = CATEGORY_ICON[cred.category] ?? Settings;
+                    return (
+                      <TableRow key={cred.id}>
+                        <TableCell className="font-medium">
+                          <div className="min-w-0">
+                            <div className="truncate">{cred.name}</div>
+                            {cred.note && (
+                              <div className="text-xs text-muted-foreground truncate">{cred.note}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{cred.category}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-[10px] font-mono text-muted-foreground">
+                          {cred.file}
+                        </TableCell>
+                        <TableCell>
+                          {cred.keys !== undefined && cred.status === "ok" ? (
+                            <span className="text-xs text-muted-foreground">
+                              {cred.keys} key{cred.keys !== 1 ? "s" : ""}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
                           )}
-                          <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{cred.file}</div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4 shrink-0">
-                          {cred.keys !== undefined && cred.status === "ok" && (
-                            <span className="text-xs text-muted-foreground">{cred.keys} key{cred.keys !== 1 ? "s" : ""}</span>
-                          )}
+                        </TableCell>
+                        <TableCell>
                           <span className={`text-xs font-medium px-2 py-1 rounded ${STATUS_STYLE[cred.status]}`}>
                             {STATUS_LABEL[cred.status]}
                           </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

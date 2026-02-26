@@ -19,6 +19,7 @@ export interface OcAgent {
   model: string;
   isDefault: boolean;
   sessionCount: number;
+  skillCount?: number;
   bindings: OcBinding[];
 }
 
@@ -45,6 +46,7 @@ export default async function handler(
         const workspace = a.workspace || (id === "main" ? defaultWorkspace : join(HOME, `.openclaw/workspace-${id}`));
         const agentDir = a.agentDir || join(HOME, `.openclaw/agents/${id}/agent`);
         const model = a.model || defaultModel;
+        const skillCount = Array.isArray(a.skills) ? a.skills.length : 0;
 
         // Count sessions for this agent
         let sessionCount = 0;
@@ -74,6 +76,7 @@ export default async function handler(
           model,
           isDefault,
           sessionCount,
+          skillCount,
           bindings,
         };
       })

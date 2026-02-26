@@ -1,48 +1,16 @@
 import Layout from "@/components/Layout";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Bot, FolderOpen, Radio, MessageSquare, Layers } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Bot, Radio } from "lucide-react";
+import { useState } from "react";
+import { useAutoRefresh } from "@/lib/settings-context";
 import { useCounts } from "@/lib/counts-context";
+import { SortableTableHead } from "@/components/SortableTableHead";
+import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import type { OcAgent } from "./api/oc-agents";
-
-function AgentsSkeleton() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {[1, 2].map(i => (
-        <div key={i} className="rounded-xl border border-border p-5 space-y-4">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-          </div>
-          <Skeleton className="h-3 w-48" />
-          <Skeleton className="h-3 w-36" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function shortPath(p: string) {
   return p.replace(/^\/Users\/[^/]+/, "~");
-}
-
-function BindingPill({ b }: { b: OcAgent["bindings"][number] }) {
-  const label = [
-    b.channel,
-    b.accountId && b.accountId !== "default" ? `(${b.accountId})` : "",
-    b.peer ? `→ ${b.peer.kind} ${b.peer.id}` : "",
-  ].filter(Boolean).join(" ");
-
-  return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full">
-      <Radio className="h-3 w-3" />
-      {label}
-    </span>
-  );
 }
 
 export default function AgentsPage() {
@@ -51,13 +19,46 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<OcAgent | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>("name");
+  const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
-  useEffect(() => {
+  useAutoRefresh(() => {
     fetch("/api/oc-agents")
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setAgents(d); else setError(d.error); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
-  }, []);
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d)) {
+          setAgents(d);
+          setError(null);
+        } else {
+          setError(d.error || "Failed to load agents");
+          setAgents([]);
+        }
+        setLoading(false);
+      })
+      .catch((e) => {
+        setError(e.message);
+        setAgents([]);
+        setLoading(false);
+      });
+  });
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDir(getNextSortDirection(sortDir));
+    } else {
+      setSortBy(column);
+      setSortDir("asc");
+    }
+  };
+
+  const tableAgents = agents.map((agent) => ({
+    ...agent,
+    channelCount: Array.from(new Set(agent.bindings.map((b) => b.channel))).length,
+    skillCount: agent.skillCount ?? 0,
+    statusSort: agent.isDefault ? 1 : 0,
+  }));
+
+  const sortedAgents = sortData(tableAgents, sortBy, sortDir);
 
   return (
     <Layout>
@@ -65,76 +66,137 @@ export default function AgentsPage() {
         <div>
           <h1 className="text-2xl sm:text-4xl font-bold">Agents</h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {loading
-              ? <Skeleton className="inline-block h-4 w-40" />
-              : `${counts?.agents ?? "…"} configured agents`}
+            {counts?.agents ?? "…"} configured agents
           </p>
         </div>
 
-        {error && <div className="bg-red-50 dark:bg-red-900 border border-red-200 text-red-700 dark:text-red-200 px-4 py-3 rounded">Error: {error}</div>}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded">
+            Error: {error}
+          </div>
+        )}
 
-        {loading ? <AgentsSkeleton /> : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {agents.map(agent => (
-              <button
-                key={agent.id}
-                onClick={() => setSelected(agent)}
-                className="text-left rounded-xl border border-border p-5 hover:border-gray-400 dark:hover:border-gray-600 hover:shadow-sm transition-all space-y-4"
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                      <Bot className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-sm flex items-center gap-2">
-                        {agent.name}
-                        {agent.isDefault && (
-                          <span className="text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-muted-foreground px-1.5 py-0.5 rounded">
-                            default
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground font-mono">{agent.id}</div>
-                    </div>
-                  </div>
-                  {agent.sessionCount > 0 && (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
-                      <MessageSquare className="h-3 w-3" />
-                      {agent.sessionCount}
-                    </span>
-                  )}
-                </div>
-
-                {/* Model */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Layers className="h-3.5 w-3.5 shrink-0" />
-                  <span className="font-mono truncate">{agent.model}</span>
-                </div>
-
-                {/* Workspace */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                  <span className="font-mono truncate">{shortPath(agent.workspace)}</span>
-                </div>
-
-                {/* Bindings */}
-                {agent.bindings.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {agent.bindings.map((b, i) => <BindingPill key={i} b={b} />)}
-                  </div>
+        {loading ? (
+          <p className="text-muted-foreground">Loading agents...</p>
+        ) : (
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="name"
+                      label="Agent Name"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="workspace"
+                      label="Workspace"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="model"
+                      label="Model"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="channelCount"
+                      label="Channels"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="skillCount"
+                      label="Skills"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
+                      column="statusSort"
+                      label="Status"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedAgents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      No agents found
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">Catch-all (no explicit bindings)</p>
+                  sortedAgents.map((agent) => (
+                    <TableRow
+                      key={agent.id}
+                      className="cursor-pointer"
+                      onClick={() => setSelected(agent)}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <Bot className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="min-w-0">
+                            <div className="truncate">{agent.name}</div>
+                            <div className="text-xs text-muted-foreground font-mono truncate">{agent.id}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs font-mono text-muted-foreground max-w-xs">
+                        <code className="bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded">
+                          {shortPath(agent.workspace)}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-medium px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                          {agent.model}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-sm">{agent.channelCount}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-sm">{agent.skillCount}</span>
+                      </TableCell>
+                      <TableCell>
+                        {agent.isDefault ? (
+                          <span className="text-xs font-medium bg-gray-100 dark:bg-gray-800 text-muted-foreground px-2 py-1 rounded">
+                            Default
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
-              </button>
-            ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>
 
-      {/* Detail sheet */}
-      <Sheet open={!!selected} onOpenChange={open => { if (!open) setSelected(null); }}>
+      <Sheet open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null); }}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
           {selected && (
             <>
@@ -183,18 +245,40 @@ export default function AgentsPage() {
                 </div>
 
                 <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Channels ({Array.from(new Set(selected.bindings.map((b) => b.channel))).length})
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selected.bindings.length > 0
+                      ? selected.bindings.map((b) => b.channel).filter((v, i, arr) => arr.indexOf(v) === i).join(", ")
+                      : "Catch-all (no explicit channel bindings)"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                    Skills ({selected.skillCount ?? 0})
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {(selected.skillCount ?? 0) > 0
+                      ? `${selected.skillCount} configured skill${(selected.skillCount ?? 0) !== 1 ? "s" : ""}`
+                      : "No per-agent skill overrides"}
+                  </p>
+                </div>
+
+                <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
                     Bindings ({selected.bindings.length})
                   </p>
                   {selected.bindings.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">Catch-all — receives unmatched inbound messages</p>
+                    <p className="text-xs text-muted-foreground italic">Catch-all - receives unmatched inbound messages</p>
                   ) : (
                     <div className="space-y-2">
                       {selected.bindings.map((b, i) => (
                         <div key={i} className="text-xs bg-muted rounded px-3 py-2 space-y-0.5">
                           <div className="font-medium flex items-center gap-1.5">
                             <Radio className="h-3 w-3" />{b.channel}
-                            {b.accountId && <span className="text-muted-foreground">· {b.accountId}</span>}
+                            {b.accountId && <span className="text-muted-foreground">- {b.accountId}</span>}
                           </div>
                           {b.peer && (
                             <div className="text-muted-foreground pl-4.5">

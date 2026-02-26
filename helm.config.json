@@ -1,6 +1,6 @@
 {
   "themeColor": "lobster",
-  "colorMode": "dark",
+  "colorMode": "system",
   "sidebarPosition": "left",
   "showSidebarCounts": true,
   "hiddenSidebarItems": [],
