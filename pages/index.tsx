@@ -906,9 +906,8 @@ function ActiveSessionsCard() {
   const idle = Math.max(0, sessions.length - active);
   const total = Math.max(sessions.length, 1);
   const last7 = (displayCost?.daily ?? []).slice(-7);
-  const points = last7.map((d) => d.cost);
+  const maxCost = Math.max(...last7.map(d => d.cost), 1);
   const fmtDay = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en", { weekday: "short" });
-  const sessionLabels = last7.length > 0 ? [fmtDay(last7[0].date), fmtDay(last7[last7.length - 1].date)] : [];
 
   return (
     <Card>
@@ -931,7 +930,34 @@ function ActiveSessionsCard() {
           <div className="h-full" style={{ width: `${(idle / total) * 100}%`, backgroundColor: "var(--theme-accent)", opacity: 0.4 }} />
         </div>
         <p className="text-[11px] text-muted-foreground tabular-nums">{active} active · {idle} idle</p>
-        <MiniSparkline values={points} labels={sessionLabels} />
+        <div className="flex items-end gap-1 h-14">
+          {last7.map((day, i) => {
+            const pct = (day.cost / maxCost) * 100;
+            const isToday = i === last7.length - 1;
+            return (
+              <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full relative" style={{ height: "44px" }}>
+                  <div
+                    className="absolute bottom-0 w-full rounded-sm"
+                    title={`${fmtDay(day.date)}: $${day.cost.toFixed(2)}`}
+                    style={{
+                      height: `${Math.max(pct, 4)}%`,
+                      backgroundColor: "var(--theme-accent)",
+                      opacity: isToday ? 1 : 0.5,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-1">
+          {last7.map((day) => (
+            <span key={day.date} className="flex-1 text-center text-[9px] text-muted-foreground/50">
+              {fmtDay(day.date).slice(0, 2)}
+            </span>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
