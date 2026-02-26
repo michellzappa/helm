@@ -29,6 +29,7 @@ function updateFavicon(bg: string) {
 export function ThemeColorApplier() {
   const { settings } = useSettings();
 
+  // Initial setup on mount (creates favicon immediately)
   useEffect(() => {
     const color = getThemeColor(settings.themeColor ?? "gray");
     const root = document.documentElement;
@@ -45,7 +46,26 @@ export function ThemeColorApplier() {
       root.style.setProperty("--ring", color.accent);
     }
 
-    // Dynamic favicon
+    // Dynamic favicon - create immediately
+    updateFavicon(color.accent);
+  }, []);
+
+  // Update when theme changes
+  useEffect(() => {
+    const color = getThemeColor(settings.themeColor ?? "gray");
+    const root = document.documentElement;
+
+    root.style.setProperty("--theme-accent", color.accent);
+    if (color.id === "gray") {
+      root.style.removeProperty("--primary");
+      root.style.removeProperty("--primary-foreground");
+      root.style.removeProperty("--ring");
+    } else {
+      root.style.setProperty("--primary", color.primary);
+      root.style.setProperty("--primary-foreground", color.primaryFg);
+      root.style.setProperty("--ring", color.accent);
+    }
+
     updateFavicon(color.accent);
   }, [settings.themeColor]);
 
