@@ -16,16 +16,16 @@ Helm reads directly from your `~/.openclaw/` workspace and shows real system sta
 | **Activities** | Tool calls, messages, cron runs — 30-day histogram + hourly heatmap |
 | **Agents** | Configured agents, model bindings, session counts |
 | **Channels** | Telegram, WhatsApp, Discord — health, queue status |
-| **Costs** | Daily spend histogram, per-model breakdown, 30-day trend |
+| **Spend** | Stacked daily histogram by model, per-model + per-session-type breakdown |
 | **Credentials** | API keys and tokens — valid / expired / expiring soon |
 | **Crons** | Scheduled jobs — next run, last status, agent, model |
 | **Heartbeats** | Agent heartbeat history and manual trigger |
 | **Memory** | All memory files with content viewer |
 | **Messages** | Delivery queue — stuck messages, errors |
-| **Models** | Configured LLMs with cron job usage linkage |
+| **Models** | Configured LLMs + Ollama, cross-linked with skills that use them |
 | **Nodes** | Paired devices — last seen, platform, role |
 | **Sessions** | All sessions with token counts and cost (3 decimal EUR/USD) |
-| **Skills** | Workspace, extension, and global skills |
+| **Skills** | Workspace, extension, and global skills — with model usage per skill |
 | **Workspaces** | Agent workspaces and sizes |
 
 ## Features
@@ -33,6 +33,9 @@ Helm reads directly from your `~/.openclaw/` workspace and shows real system sta
 - **⌘K command palette** — jump anywhere
 - **Keyboard navigation** — ← → between pages, ESC for settings, ? for shortcuts
 - **9 theme colors** (OKLCH) — persisted to localStorage
+- **PWA / Add to Home Screen** — standalone app mode with dynamic themed icon
+- **Mobile-friendly** — hamburger menu, safe area support, touch targets
+- **Cross-platform** — works on macOS, Linux, and Windows (no hardcoded paths)
 - **Server-side cache** — in-memory with 2-min background warmer, sub-10ms API responses
 - **Client-side cache** — localStorage with 24h validity for dashboard widgets
 - **Demo mode** — `DEMO_MODE=1` returns PII-free fixture data for safe screenshots
@@ -57,6 +60,13 @@ Open [localhost:1111](http://localhost:1111).
 cp launchagent.example.plist ~/Library/LaunchAgents/com.yourname.helm.plist
 # Edit the path, then:
 launchctl load ~/Library/LaunchAgents/com.yourname.helm.plist
+```
+
+### Auto-start (Linux)
+
+```bash
+# systemd service, or add to your init:
+pnpm start  # runs on port 1111
 ```
 
 ## Stack
