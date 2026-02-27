@@ -57,7 +57,8 @@ async function countModels(): Promise<number> {
     count += (JSON.parse(stdout).models ?? []).length;
   } catch {}
   try {
-    const res = await fetch("http://localhost:11434/api/tags", { signal: AbortSignal.timeout(2000) });
+    const ollamaUrl = process.env.OLLAMA_URL ?? "http://localhost:11434";
+    const res = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
     if (res.ok) count += ((await res.json()).models ?? []).length;
   } catch {}
   return count;

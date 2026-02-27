@@ -12,8 +12,8 @@ const HOME = os.homedir();
 /** ~/.openclaw */
 export const OC_HOME = join(HOME, ".openclaw");
 
-/** ~/.openclaw/workspace */
-export const OC_WORKSPACE = join(OC_HOME, "workspace");
+/** ~/.openclaw/workspace (or WORKSPACE_PATH env override) */
+export const OC_WORKSPACE = process.env.WORKSPACE_PATH || join(OC_HOME, "workspace");
 
 /** ~/.openclaw/workspace/skills */
 export const OC_WORKSPACE_SKILLS = join(OC_WORKSPACE, "skills");
