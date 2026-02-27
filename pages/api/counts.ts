@@ -3,6 +3,7 @@ import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, getGlobalSkillsPath } from "../../lib/oc-paths";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { ensureWarmer } from "../../lib/cache-warmer";
 
@@ -90,9 +91,9 @@ async function countSkills(): Promise<number> {
   } catch {}
 
   const locations = [
-    { path: join(HOME, ".openclaw/workspace/skills") },
-    { path: "/opt/homebrew/lib/node_modules/openclaw/skills" },
-    { path: join(HOME, ".openclaw/extensions") },
+    { path: OC_WORKSPACE_SKILLS },
+    { path: getGlobalSkillsPath() },
+    { path: OC_EXTENSIONS },
   ];
 
   let total = 0;

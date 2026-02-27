@@ -57,8 +57,10 @@ async function handler(
   try {
     const tasks: ScheduledTask[] = [];
 
-    // Fetch LaunchAgents (only managed ones)
+    // Fetch LaunchAgents (macOS only)
+    const isMacOS = process.platform === "darwin";
     try {
+      if (!isMacOS) throw new Error("skip: not macOS");
       const { stdout } = await execAsync("launchctl list");
       const lines = stdout.split("\n");
       

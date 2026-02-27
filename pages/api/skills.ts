@@ -1,6 +1,6 @@
-import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
+import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, getGlobalSkillsPath } from "../../lib/oc-paths";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { skills as _demoFixture } from "../../lib/demo-fixtures";
@@ -139,20 +139,18 @@ async function handler(
 
   try {
     const allSkills = await getOrFetch<Skill[]>("api-skills", TTL_MS, async () => {
-      const home = os.homedir();
-
       let disabledSkills: string[] = [];
       try {
-        const configPath = join(home, ".openclaw/workspace/config/disabled-skills.json");
+        const configPath = join(OC_WORKSPACE_SKILLS, "../config/disabled-skills.json");
         const configContent = await readFile(configPath, "utf-8");
         const config = JSON.parse(configContent);
         disabledSkills = config.disabled || [];
       } catch {}
 
       const [workspaceSkills, globalSkills, extensionSkills] = await Promise.all([
-        scanSkills(join(home, ".openclaw/workspace/skills"), "workspace"),
-        scanSkills("/opt/homebrew/lib/node_modules/openclaw/skills", "global"),
-        scanSkills(join(home, ".openclaw/extensions"), "extension").catch(() => []),
+        scanSkills(OC_WORKSPACE_SKILLS, "workspace"),
+        scanSkills(getGlobalSkillsPath(), "global"),
+        scanSkills(OC_EXTENSIONS, "extension").catch(() => []),
       ]);
 
       return [...workspaceSkills, ...globalSkills, ...extensionSkills]

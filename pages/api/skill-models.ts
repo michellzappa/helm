@@ -1,6 +1,6 @@
-import os from "os";
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
+import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, OC_CRON_JOBS, getGlobalSkillsPath } from "../../lib/oc-paths";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getOrFetch } from "../../lib/server-cache";
 
@@ -99,13 +99,12 @@ function extractModelsFromSource(content: string): string[] {
 }
 
 async function scanAllSkills(): Promise<SkillModelLink[]> {
-  const home = os.homedir();
   const links: SkillModelLink[] = [];
 
   const skillDirs = [
-    { base: join(home, ".openclaw/workspace/skills"), location: "workspace" },
-    { base: "/opt/homebrew/lib/node_modules/openclaw/skills", location: "global" },
-    { base: join(home, ".openclaw/extensions"), location: "extension" },
+    { base: OC_WORKSPACE_SKILLS, location: "workspace" },
+    { base: getGlobalSkillsPath(), location: "global" },
+    { base: OC_EXTENSIONS, location: "extension" },
   ];
 
   for (const { base } of skillDirs) {
@@ -137,7 +136,7 @@ async function scanAllSkills(): Promise<SkillModelLink[]> {
 
   // Add cron job → model links
   try {
-    const cronPath = join(home, ".openclaw/cron/jobs.json");
+    const cronPath = OC_CRON_JOBS;
     const cronRaw = await readFile(cronPath, "utf-8");
     const cronJobs = JSON.parse(cronRaw).jobs ?? [];
 
