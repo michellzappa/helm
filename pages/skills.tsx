@@ -5,11 +5,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Zap, FileCode, Puzzle } from "lucide-react";
+import { Zap, Cpu, FileCode, Puzzle } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useState, useEffect } from "react";
 import { useCounts } from "@/lib/counts-context";
+
+interface SkillModelLink {
+  skill: string;
+  script: string;
+  model: string;
+  source: "local" | "cloud";
+  via: "ollama" | "cron" | "python" | "config";
+}
 
 interface Skill {
   name: string;
@@ -75,6 +83,7 @@ type LocationTab = "all" | "workspace" | "extension" | "global";
 export default function SkillsPage() {
   const { counts: globalCounts } = useCounts();
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [modelLinks, setModelLinks] = useState<SkillModelLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("location");
@@ -84,11 +93,23 @@ export default function SkillsPage() {
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
   useEffect(() => {
-    fetch("/api/skills")
-      .then(r => r.json())
-      .then(d => { if (Array.isArray(d)) setSkills(d); else setError(d.error); setLoading(false); })
-      .catch(e => { setError(e.message); setLoading(false); });
+    Promise.all([
+      fetch("/api/skills").then(r => r.json()),
+      fetch("/api/skill-models").then(r => r.json()).catch(() => []),
+    ]).then(([skillsData, linksData]) => {
+      if (Array.isArray(skillsData)) setSkills(skillsData);
+      else if (skillsData.error) setError(skillsData.error);
+      if (Array.isArray(linksData)) setModelLinks(linksData);
+      setLoading(false);
+    }).catch(e => { setError(e.message); setLoading(false); });
   }, []);
+
+  const getModelsForSkill = (name: string) => {
+    const links = modelLinks.filter(l => l.skill === name);
+    // Dedupe by model name
+    const seen = new Set<string>();
+    return links.filter(l => { if (seen.has(l.model)) return false; seen.add(l.model); return true; });
+  };
 
   const handleSort = (col: string) => {
     if (sortBy === col) setSortDir(getNextSortDirection(sortDir));
@@ -173,6 +194,7 @@ export default function SkillsPage() {
                     <SortableTableHead column="workspace" label="Workspace" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Models</TableHead>
                   <TableHead>
                     <SortableTableHead column="location" label="Type" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
@@ -182,7 +204,7 @@ export default function SkillsPage() {
               <TableBody>
                 {sorted.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No skills found</TableCell>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">No skills found</TableCell>
                   </TableRow>
                 ) : sorted.map(skill => {
                   const typeConf = TYPE_CONFIG[skill.location];
@@ -216,6 +238,32 @@ export default function SkillsPage() {
                         <span className="line-clamp-2">{skill.description}</span>
                       </TableCell>
                       <TableCell>
+                        {(() => {
+                          const models = getModelsForSkill(skill.name);
+                          if (!models.length) return <span className="text-xs text-muted-foreground">—</span>;
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {models.map(m => (
+                                <span
+                                  key={m.model}
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-mono"
+                                  style={{
+                                    backgroundColor: m.source === "local"
+                                      ? "color-mix(in srgb, var(--theme-accent) 10%, transparent)"
+                                      : "rgba(147, 51, 234, 0.1)",
+                                    color: m.source === "local" ? "var(--theme-accent)" : "rgb(147, 51, 234)",
+                                  }}
+                                  title={`${m.via}: ${m.script}`}
+                                >
+                                  {m.source === "local" ? <Cpu className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+                                  {m.model}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
+                      <TableCell>
                         <span className={`text-xs font-medium px-2 py-1 rounded ${typeConf.className ?? ""}`} style={typeConf.style}>
                           {typeConf.label}
                         </span>
@@ -232,7 +280,7 @@ export default function SkillsPage() {
 
       {/* Skill detail — Sheet */}
       <Sheet open={!!selectedSkill} onOpenChange={open => { if (!open) setSelectedSkill(null); }}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+        <SheetContent side="right" className="w-[90%] sm:max-w-md overflow-y-auto">
           {selectedSkill && (() => {
             const typeConf = TYPE_CONFIG[selectedSkill.location];
             return (

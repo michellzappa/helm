@@ -107,7 +107,7 @@ export function SettingsModal({ open, onOpenChange, menuItems }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto mx-4 rounded-lg" style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top, 1.5rem))" }}>
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
-  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -66,15 +65,32 @@ export default function CostsPage() {
     }));
   }, [data?.byKind, currencyInfo.rate]);
 
-  const dailyCosts = useMemo(
-    () =>
-      (data?.daily ?? []).map(row => ({
+  // Build stacked daily data: one key per model
+  const { dailyCosts, dailyModels } = useMemo(() => {
+    const modelSet = new Set<string>();
+    const rows = (data?.daily ?? []).map(row => {
+      const entry: Record<string, unknown> = {
         date: row.date,
         label: dayLabel(row.date),
         cost: convertCost(row.cost),
-      })),
-    [data?.daily, currencyInfo.rate]
-  );
+      };
+      if (row.byModel) {
+        for (const [model, cost] of Object.entries(row.byModel)) {
+          modelSet.add(model);
+          entry[model] = convertCost(cost);
+        }
+      }
+      return entry;
+    });
+    // Sort models by total cost (matching byModel order)
+    const modelOrder = (data?.byModel ?? []).map(m => m.model);
+    const sorted = Array.from(modelSet).sort((a, b) => {
+      const ai = modelOrder.indexOf(a);
+      const bi = modelOrder.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    return { dailyCosts: rows, dailyModels: sorted };
+  }, [data?.daily, data?.byModel, currencyInfo.rate]);
 
   return (
     <Layout>
@@ -189,17 +205,20 @@ export default function CostsPage() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={4} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmtCost(Number(v), currencyInfo.symbol)} />
                   <Tooltip
-                    formatter={(value) => [fmtCost(Number(value ?? 0), currencyInfo.symbol), "Cost"]}
+                    formatter={(value: number, name: string) => [fmtCost(Number(value ?? 0), currencyInfo.symbol), name]}
                     labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
+                    contentStyle={{ fontSize: 12 }}
                   />
-                  <Bar dataKey="cost" radius={[4, 4, 0, 0]}>
-                    {dailyCosts.map((entry, index) => {
-                      const opacity = Math.max(0.35, 1 - (index * 0.05)); // Graduated opacity like model bars
-                      return (
-                        <Cell key={`cell-${index}`} fill={accent} fillOpacity={opacity} />
-                      );
-                    })}
-                  </Bar>
+                  {dailyModels.map((model, index) => (
+                    <Bar
+                      key={model}
+                      dataKey={model}
+                      stackId="cost"
+                      fill={accent}
+                      fillOpacity={modelAccentOpacity(index)}
+                      radius={index === dailyModels.length - 1 ? [4, 4, 0, 0] : undefined}
+                    />
+                  ))}
                 </BarChart>
               </ResponsiveContainer>
             </div>

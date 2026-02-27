@@ -8,6 +8,7 @@ const SIDEBAR_COOKIE_NAME = "sidebar:state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "19rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
+const SIDEBAR_WIDTH_MOBILE = "16rem"
 
 type SidebarContext = {
   state: "expanded" | "collapsed"
@@ -174,9 +175,10 @@ const Sidebar = React.forwardRef<
         >
           <div
             className={cn(
-              "flex h-full w-[--sidebar-width-mobile] flex-col bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out pointer-events-auto",
+              `flex h-full flex-col bg-sidebar text-sidebar-foreground transition-transform duration-300 ease-in-out pointer-events-auto`,
               !openMobile && "-translate-x-full"
             )}
+            style={{ width: SIDEBAR_WIDTH_MOBILE, paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
             onClick={(e) => e.stopPropagation()}
             {...props}
           />
@@ -270,7 +272,7 @@ const SidebarContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-1 flex-col gap-0 overflow-hidden px-2 py-4", className)}
+    className={cn("flex flex-1 flex-col gap-0 overflow-y-auto overflow-x-hidden px-2 py-4 min-h-0", className)}
     {...props}
   />
 ))

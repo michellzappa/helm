@@ -1422,10 +1422,10 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => setEditing(true)}
-              className="p-2 rounded-md hover:bg-muted transition-colors"
+              className="p-2.5 -mr-1 rounded-lg hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation"
               title="Edit dashboard widgets"
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-5 w-5 sm:h-4 sm:w-4" />
             </button>
           </div>
           <div className="flex items-center gap-3 mt-1">

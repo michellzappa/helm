@@ -266,7 +266,7 @@ async function collectErrors(): Promise<ErrorEntry[]> {
       if (errors.length >= MAX_ERRORS) break;
 
       // Parse timestamp from start of line (ISO format)
-      const tsMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      const tsMatch = line.match(/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}/);
       if (!tsMatch) continue;
 
       const ts = new Date(tsMatch[1]);

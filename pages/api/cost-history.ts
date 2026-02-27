@@ -28,7 +28,7 @@ export interface CostHistoryData {
   summary: { today: number; week: number; month: number; allTime: number };
   byModel: { model: string; cost: number; percent: number }[];
   byKind: { kind: string; cost: number; percent: number }[];
-  daily: { date: string; cost: number }[];
+  daily: { date: string; cost: number; byModel?: Record<string, number> }[];
   currency: "USD";
 }
 
@@ -201,9 +201,12 @@ function buildResponse(events: CostEvent[]): CostHistoryData {
   const costByModel = new Map<string, number>();
   const costByKind = new Map<string, number>();
   const dailyBuckets = new Map<string, number>();
+  const dailyModelBuckets = new Map<string, Map<string, number>>();
 
   for (let i = 29; i >= 0; i--) {
-    dailyBuckets.set(isoDate(daysAgoStartMs(i)), 0);
+    const key = isoDate(daysAgoStartMs(i));
+    dailyBuckets.set(key, 0);
+    dailyModelBuckets.set(key, new Map());
   }
 
   for (const event of events) {
@@ -219,6 +222,8 @@ function buildResponse(events: CostEvent[]): CostHistoryData {
       const key = isoDate(event.timestampMs);
       if (dailyBuckets.has(key)) {
         dailyBuckets.set(key, (dailyBuckets.get(key) ?? 0) + event.cost);
+        const modelMap = dailyModelBuckets.get(key)!;
+        modelMap.set(event.model, (modelMap.get(event.model) ?? 0) + event.cost);
       }
     }
   }
@@ -239,7 +244,14 @@ function buildResponse(events: CostEvent[]): CostHistoryData {
     }))
     .sort((a, b) => b.cost - a.cost);
 
-  const daily = Array.from(dailyBuckets.entries()).map(([date, cost]) => ({ date, cost }));
+  const daily = Array.from(dailyBuckets.entries()).map(([date, cost]) => {
+    const modelMap = dailyModelBuckets.get(date);
+    const byModel: Record<string, number> = {};
+    if (modelMap) {
+      for (const [model, modelCost] of modelMap) byModel[model] = modelCost;
+    }
+    return { date, cost, byModel };
+  });
 
   return {
     summary: { today, week, month, allTime },

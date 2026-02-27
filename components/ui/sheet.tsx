@@ -35,7 +35,7 @@ const sideVariants: Record<string, string> = {
   top: "inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
   bottom: "inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
   left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
-  right: "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
+  right: "inset-y-0 right-0 h-full w-[85%] border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
 };
 
 const SheetContent = React.forwardRef<
@@ -55,8 +55,8 @@ const SheetContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity">
-        <X className="h-4 w-4" />
+      <DialogPrimitive.Close className="absolute right-3 top-3 p-2 rounded-md opacity-70 hover:opacity-100 hover:bg-muted transition-all touch-manipulation" style={{ top: "max(0.75rem, env(safe-area-inset-top, 0.75rem))" }}>
+        <X className="h-5 w-5" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -64,8 +64,8 @@ const SheetContent = React.forwardRef<
 ));
 SheetContent.displayName = "SheetContent";
 
-const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 p-6 pb-0", className)} {...props} />
+const SheetHeader = ({ className, style, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex flex-col space-y-2 p-6 pb-0", className)} style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top, 1.5rem))", ...style }} {...props} />
 );
 SheetHeader.displayName = "SheetHeader";
 

@@ -13,6 +13,14 @@ interface ModelUsage {
   jobs: Array<{ jobId: string; jobName: string; modelRef: string }>;
 }
 
+interface SkillModelLink {
+  skill: string;
+  script: string;
+  model: string;
+  source: "local" | "cloud";
+  via: "ollama" | "cron" | "python" | "config";
+}
+
 const SPEED_COLORS: Record<string, { className?: string; style?: React.CSSProperties }> = {
   fast: {
     style: {
@@ -49,6 +57,7 @@ function formatBytes(bytes: number): string {
 export default function ModelsPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [usage, setUsage] = useState<ModelUsage[]>([]);
+  const [skillLinks, setSkillLinks] = useState<SkillModelLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<string | null>("source");
@@ -59,10 +68,12 @@ export default function ModelsPage() {
     Promise.all([
       fetch("/api/models").then(r => r.json()),
       fetch("/api/model-usage").then(r => r.json()),
-    ]).then(([modelsData, usageData]) => {
+      fetch("/api/skill-models").then(r => r.json()).catch(() => []),
+    ]).then(([modelsData, usageData, linksData]) => {
       if (Array.isArray(modelsData)) setModels(modelsData);
       else if (modelsData.error) setError(modelsData.error);
       if (Array.isArray(usageData)) setUsage(usageData);
+      if (Array.isArray(linksData)) setSkillLinks(linksData);
       setLoading(false);
     }).catch(e => { setError(e.message); setLoading(false); });
   }, []);
@@ -79,6 +90,7 @@ export default function ModelsPage() {
     if (!q) return true;
     const jobNames = getUsage(model.id).map((job) => job.jobName).join(" ");
     const tags = (model.tags ?? []).join(" ");
+    const skills = skillLinks.filter(l => l.model === model.id || l.model === model.name).map(l => l.skill).join(" ");
     return [
       model.id,
       model.name,
@@ -87,6 +99,7 @@ export default function ModelsPage() {
       model.speed ?? "",
       tags,
       jobNames,
+      skills,
     ].some((value) => value.toLowerCase().includes(q));
   });
   const sorted = sortData(filteredModels, sortBy, sortDir);
@@ -130,7 +143,7 @@ export default function ModelsPage() {
                     <TableHead className="text-right"><SortableTableHead column="context" label="Context" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} /></TableHead>
                     <TableHead className="text-center">Input</TableHead>
                     <TableHead className="text-center">Output</TableHead>
-                    <TableHead>Used For</TableHead>
+                    <TableHead>Skills</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -191,14 +204,36 @@ export default function ModelsPage() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {(() => {
+                          // Match by model ID, name, or alias
+                          const aliases = (model.tags ?? []).filter(t => t.startsWith("alias:")).map(t => t.slice(6));
+                          const matchTokens = [model.id, model.name, ...aliases];
+                          const links = skillLinks.filter(l =>
+                            matchTokens.some(t => t === l.model || l.model === model.id || l.model === model.name)
+                          );
                           const jobs = getUsage(model.id);
-                          if (!jobs.length) return <span className="text-muted-foreground">—</span>;
+                          if (!links.length && !jobs.length) return <span className="text-muted-foreground">—</span>;
+                          // Dedupe skills
+                          const seen = new Set<string>();
+                          const uniqueLinks = links.filter(l => { if (seen.has(l.skill)) return false; seen.add(l.skill); return true; });
                           return (
-                            <div className="space-y-0.5">
-                              {jobs.map(job => (
-                                <div key={job.jobId} className="truncate text-muted-foreground" title={job.jobName}>
-                                  {job.jobName}
-                                </div>
+                            <div className="flex flex-wrap gap-1">
+                              {uniqueLinks.map(l => (
+                                <span
+                                  key={l.skill}
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded"
+                                  style={{
+                                    backgroundColor: "color-mix(in srgb, var(--theme-accent) 10%, transparent)",
+                                    color: "var(--theme-accent)",
+                                  }}
+                                  title={`${l.via}: ${l.script}`}
+                                >
+                                  {l.skill}
+                                </span>
+                              ))}
+                              {jobs.filter(j => !seen.has(j.jobName)).map(j => (
+                                <span key={j.jobId} className="text-muted-foreground truncate" title={j.jobName}>
+                                  {j.jobName}
+                                </span>
                               ))}
                             </div>
                           );

@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#a85246"/>
-  <g fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Eye outline -->
-    <path d="M15 50 Q50 20 85 50 Q50 80 15 50Z"/>
-    <!-- Iris -->
-    <circle cx="50" cy="50" r="12"/>
-    <!-- Pupil -->
-    <circle cx="50" cy="50" r="5" fill="white"/>
+  <rect width="100" height="100" rx="22" fill="oklch(65% 0.20 30)"/>
+  <g transform="translate(18,18) scale(2.667)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8"/>
+    <path d="M12 2v7.5"/>
+    <path d="m19 5-5.23 5.23"/>
+    <path d="M22 12h-7.5"/>
+    <path d="m19 19-5.23-5.23"/>
+    <path d="M12 14.5V22"/>
+    <path d="M10.23 13.77 5 19"/>
+    <path d="M9.5 12H2"/>
+    <path d="M10.23 10.23 5 5"/>
+    <circle cx="12" cy="12" r="2.5"/>
   </g>
 </svg>

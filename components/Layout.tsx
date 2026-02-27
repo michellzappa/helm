@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/command";
 import {
   LayoutDashboard, Brain, Calendar, History, Activity, Bot, Server, Zap,
-  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings, Euro, Heart,
+  FolderOpen, Cpu, Radio, KeyRound, Send, Search, Settings, Euro, Heart, Menu,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
@@ -212,8 +212,23 @@ function LayoutInner({
         <SidebarRail />
       </Sidebar>
 
-      <main className="flex-1 overflow-y-auto bg-white dark:bg-gray-950">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="flex-1 overflow-y-auto bg-[var(--background)]">
+        {/* Mobile hamburger — only visible on small screens */}
+        {isMobile && (
+          <div className="sticky top-0 z-40 flex items-center gap-3 px-4 py-2 bg-[color-mix(in_srgb,var(--background)_80%,transparent)] backdrop-blur-sm border-b border-border" style={{ paddingTop: "max(0.5rem, env(safe-area-inset-top, 0.5rem))" }}>
+            <button
+              onClick={() => setOpenMobile(true)}
+              className="p-2 -ml-2 rounded-lg hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation"
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <span className="text-sm font-semibold truncate">
+              {visibleMenuItems.find(i => i.href === router.pathname)?.label ?? "Helm"}
+            </span>
+          </div>
+        )}
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8" style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))" }}>
           {children}
         </div>
       </main>
