@@ -3,7 +3,7 @@ import Layout from "@/components/Layout";
 import { TableFilter } from "@/components/TableFilter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertCircle, MessageSquare, Send, Radio, Paperclip, Trash2, X } from "lucide-react";
+import { AlertCircle, MessageSquare, Send, Radio, Paperclip, Trash2, X, Clock, Hourglass } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { QueueItem } from "@/lib/types";
 
@@ -23,6 +23,79 @@ function timeAgo(ms: number) {
   if (h > 0) return `${h}h ago`;
   if (m > 0) return `${m}m ago`;
   return "just now";
+}
+
+function formatDuration(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}h ${m % 60}m`;
+  if (m > 0) return `${m}m ${s % 60}s`;
+  return `${s}s`;
+}
+
+function RetryTimeline({ item }: { item: QueueItem }) {
+  if (!item.lastAttemptAt || !item.nextRetryAt) return null;
+  
+  const now = Date.now();
+  const isInBackoff = now < item.nextRetryAt;
+  const timeToRetry = Math.max(0, item.nextRetryAt - now);
+  
+  // Timeline visualization: enqueued -> attempts -> next retry
+  const totalSpan = item.nextRetryAt - item.enqueuedAt;
+  const progress = Math.min(100, Math.max(0, ((now - item.enqueuedAt) / totalSpan) * 100));
+  
+  return (
+    <div className="mt-3 space-y-1.5">
+      {/* Timeline bar */}
+      <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+        <div 
+          className="absolute left-0 top-0 h-full bg-[var(--theme-accent)] opacity-30 rounded-full"
+          style={{ width: `${progress}%` }}
+        />
+        {/* Retry points */}
+        {Array.from({ length: Math.min(item.retryCount, 5) }).map((_, i) => {
+          const attemptTime = item.enqueuedAt + (i + 1) * (item.backoffMs || 1000);
+          const pos = ((attemptTime - item.enqueuedAt) / totalSpan) * 100;
+          return (
+            <div 
+              key={i}
+              className="absolute top-0 w-1.5 h-full bg-[var(--theme-accent)] rounded-full"
+              style={{ left: `${Math.min(98, pos)}%` }}
+            />
+          );
+        })}
+        {/* Next retry indicator */}
+        <div 
+          className="absolute top-0 w-0.5 h-full bg-red-500 rounded-full"
+          style={{ left: `${Math.min(98, (item.nextRetryAt - item.enqueuedAt) / totalSpan * 100)}%` }}
+        />
+      </div>
+      
+      {/* Status row */}
+      <div className="flex items-center gap-3 text-xs">
+        {isInBackoff ? (
+          <>
+            <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+              <Hourglass className="h-3 w-3" />
+              Backoff
+            </span>
+            <span className="text-muted-foreground">
+              Next retry in {formatDuration(timeToRetry)}
+            </span>
+          </>
+        ) : (
+          <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+            <Clock className="h-3 w-3" />
+            Ready to retry
+          </span>
+        )}
+        <span className="text-muted-foreground ml-auto">
+          {item.retryCount} attempt{item.retryCount !== 1 ? "s" : ""}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 function QueueSkeleton() {
@@ -180,8 +253,13 @@ export default function DeliveryQueuePage() {
                             <Paperclip className="h-3 w-3" /> media
                           </span>
                         )}
+                        {item.status === "backoff" && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-200">
+                            backoff
+                          </span>
+                        )}
                         <span className="text-xs text-muted-foreground ml-auto">
-                          {timeAgo(item.enqueuedAt)} · {item.retryCount} retr{item.retryCount === 1 ? "y" : "ies"}
+                          {timeAgo(item.enqueuedAt)}
                         </span>
                       </div>
                       {item.text && (
@@ -193,6 +271,7 @@ export default function DeliveryQueuePage() {
                           <span className="break-all">{item.lastError}</span>
                         </div>
                       )}
+                      {item.retryCount > 0 && <RetryTimeline item={item} />}
                     </div>
 
                     <Tooltip>

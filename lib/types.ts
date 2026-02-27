@@ -45,7 +45,11 @@ export interface QueueItem {
   channel: string;
   to: string;
   enqueuedAt: number;
+  lastAttemptAt?: number;
   retryCount: number;
+  backoffMs?: number;
+  nextRetryAt?: number;
+  status?: "pending" | "backoff" | "retrying";
   lastError?: string;
   text?: string;
   hasMedia: boolean;
