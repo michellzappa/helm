@@ -2,7 +2,47 @@ import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Calendar, Clock, Zap, Play, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Calendar, Clock, Zap, Play, Loader2, CheckCircle2, XCircle, AlertTriangle, Timer } from "lucide-react";
+
+function fmtDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${s % 60}s`;
+}
+
+function DurationBar({ durationMs, timeoutMs, allDurations }: { durationMs: number; timeoutMs?: number; allDurations: number[] }) {
+  const maxDuration = Math.max(...allDurations, timeoutMs || 0, 1);
+  const pct = Math.min(100, (durationMs / maxDuration) * 100);
+  const timeoutPct = timeoutMs ? Math.min(100, (timeoutMs / maxDuration) * 100) : null;
+  const isNearTimeout = timeoutMs ? durationMs > timeoutMs * 0.8 : false;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative w-20 h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className="absolute left-0 top-0 h-full rounded-full"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: isNearTimeout ? "rgb(239, 68, 68)" : "var(--theme-accent)",
+            opacity: isNearTimeout ? 1 : 0.7,
+          }}
+        />
+        {timeoutPct !== null && (
+          <div
+            className="absolute top-0 w-0.5 h-full bg-red-400"
+            style={{ left: `${timeoutPct}%` }}
+            title={`Timeout: ${fmtDuration((timeoutMs || 0) * 1000)}`}
+          />
+        )}
+      </div>
+      <span className={`text-xs tabular-nums ${isNearTimeout ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
+        {fmtDuration(durationMs)}
+      </span>
+    </div>
+  );
+}
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useState } from "react";
@@ -22,6 +62,11 @@ interface ScheduledTask {
   model?: string;
   status?: string;
   lastError?: string;
+  lastDurationMs?: number;
+  consecutiveErrors?: number;
+  lastDelivered?: boolean;
+  lastDeliveryStatus?: string;
+  timeoutSeconds?: number;
 }
 
 export default function ScheduledPage() {
@@ -215,6 +260,15 @@ export default function ScheduledPage() {
                   </TableHead>
                   <TableHead className="cursor-pointer">
                     <SortableTableHead
+                      column="lastDurationMs"
+                      label="Duration"
+                      sortBy={sortBy}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer">
+                    <SortableTableHead
                       column="nextRunAtMs"
                       label="Next Run"
                       sortBy={sortBy}
@@ -237,7 +291,7 @@ export default function ScheduledPage() {
                 <TableBody>
                   {sortedTasks.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No scheduled tasks
                       </TableCell>
                     </TableRow>
@@ -271,6 +325,17 @@ export default function ScheduledPage() {
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm text-muted-foreground">
                         {task.type === "cron" ? getLastRun(task.lastRunAtMs) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {task.lastDurationMs != null ? (
+                          <DurationBar
+                            durationMs={task.lastDurationMs}
+                            timeoutMs={task.timeoutSeconds}
+                            allDurations={tasks.filter(t => t.lastDurationMs != null).map(t => t.lastDurationMs!)}
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs sm:text-sm text-muted-foreground">
                         {task.type === "cron" ? (
@@ -312,13 +377,23 @@ export default function ScheduledPage() {
                           }
                           const resolvedStyle = styles[status] || styles.idle;
                           return (
-                            <span
-                              className={`text-xs px-2 py-1 rounded font-medium ${resolvedStyle.className ?? ""}`}
-                              style={resolvedStyle.style}
-                              title={task.lastError || undefined}
-                            >
-                              {labels[status] || status}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`text-xs px-2 py-1 rounded font-medium ${resolvedStyle.className ?? ""}`}
+                                style={resolvedStyle.style}
+                                title={task.lastError || undefined}
+                              >
+                                {labels[status] || status}
+                              </span>
+                              {(task.consecutiveErrors ?? 0) > 1 && (
+                                <span className="text-xs text-red-600 dark:text-red-400 font-mono" title={`${task.consecutiveErrors} consecutive errors`}>
+                                  ×{task.consecutiveErrors}
+                                </span>
+                              )}
+                              {task.lastDelivered === false && task.lastDeliveryStatus && (
+                                <AlertTriangle className="h-3 w-3 text-amber-500" title={`Delivery: ${task.lastDeliveryStatus}`} />
+                              )}
+                            </div>
                           );
                         })()}
                       </TableCell>

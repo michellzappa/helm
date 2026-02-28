@@ -164,6 +164,11 @@ async function handler(
             return s;
           })(),
           lastError: job.state?.error || job.state?.lastError || undefined,
+          lastDurationMs: job.state?.lastDurationMs ?? undefined,
+          consecutiveErrors: job.state?.consecutiveErrors ?? 0,
+          lastDelivered: job.state?.lastDelivered ?? undefined,
+          lastDeliveryStatus: job.state?.lastDeliveryStatus ?? undefined,
+          timeoutSeconds: job.payload?.timeoutSeconds ?? undefined,
         });
       }
     } catch (err) {
