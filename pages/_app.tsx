@@ -1,7 +1,6 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import "@/styles/globals.css";
-import { ThemeProvider } from "@/components/ThemeProvider";
 import { CountsProvider } from "@/lib/counts-context";
 import { SettingsProvider } from "@/lib/settings-context";
 import { ThemeColorApplier } from "@/components/ThemeColorApplier";
@@ -38,15 +37,13 @@ export default function App({ Component, pageProps }: AppProps) {
           }}
         />
       </Head>
-      <ThemeProvider>
-        <SettingsProvider>
-          <ThemeColorApplier />
-          <ColorModeApplier />
-          <CountsProvider>
-            <Component {...pageProps} />
-          </CountsProvider>
-        </SettingsProvider>
-      </ThemeProvider>
+      <SettingsProvider>
+        <ThemeColorApplier />
+        <ColorModeApplier />
+        <CountsProvider>
+          <Component {...pageProps} />
+        </CountsProvider>
+      </SettingsProvider>
     </>
   );
 }

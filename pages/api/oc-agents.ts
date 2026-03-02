@@ -13,6 +13,8 @@ export interface OcBinding {
   channel: string;
   accountId?: string;
   peer?: { kind: string; id: string };
+  sessionLifecycle?: { idleHours: number; maxAgeHours?: number };
+  telegramTopicAwareSessionRouting?: boolean;
 }
 
 export interface OcAgent {
@@ -62,11 +64,33 @@ async function handler(
 
           const bindings: OcBinding[] = allBindings
             .filter((b: any) => b.agentId === id)
-            .map((b: any) => ({
-              channel: b.match?.channel || "any",
-              accountId: b.match?.accountId,
-              peer: b.match?.peer,
-            }));
+            .map((b: any) => {
+              const lifecycle = b.sessionLifecycle ?? b.match?.sessionLifecycle ?? b.match?.threadLifecycle;
+              const idleHours =
+                typeof lifecycle?.idleHours === "number" && Number.isFinite(lifecycle.idleHours)
+                  ? lifecycle.idleHours
+                  : 24;
+              const maxAgeHours =
+                typeof lifecycle?.maxAgeHours === "number" && Number.isFinite(lifecycle.maxAgeHours)
+                  ? lifecycle.maxAgeHours
+                  : undefined;
+
+              const topicAwareCandidate =
+                b.sessionRouting?.telegramTopicAware ??
+                b.match?.sessionRouting?.telegramTopicAware ??
+                b.telegramTopicAwareSessionRouting ??
+                b.match?.topicAwareSessionRouting;
+              const telegramTopicAwareSessionRouting =
+                typeof topicAwareCandidate === "boolean" ? topicAwareCandidate : undefined;
+
+              return {
+                channel: b.match?.channel || "any",
+                accountId: b.match?.accountId,
+                peer: b.match?.peer,
+                sessionLifecycle: { idleHours, maxAgeHours },
+                telegramTopicAwareSessionRouting,
+              };
+            });
 
           const isDefault = a.default === true || (id === "main" && allBindings.every((b) => b.agentId !== "main"));
 

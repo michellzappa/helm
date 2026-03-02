@@ -310,6 +310,29 @@ export default function AgentsPage() {
                               {b.peer.kind}: <span className="font-mono">{b.peer.id}</span>
                             </div>
                           )}
+                          {b.channel === "discord" && (
+                            <div className="text-muted-foreground pl-4.5">
+                              Thread lifecycle: idle{" "}
+                              <span className="font-mono">{b.sessionLifecycle?.idleHours ?? 24}h</span>
+                              {typeof b.sessionLifecycle?.maxAgeHours === "number" && (
+                                <>
+                                  {" "}· max age <span className="font-mono">{b.sessionLifecycle.maxAgeHours}h</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          {b.channel === "telegram" && (
+                            <div className="text-muted-foreground pl-4.5">
+                              Topic-aware session routing:{" "}
+                              <span className="font-medium">
+                                {b.telegramTopicAwareSessionRouting === true
+                                  ? "enabled"
+                                  : b.telegramTopicAwareSessionRouting === false
+                                    ? "disabled"
+                                    : "not configured"}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -27,6 +27,13 @@ export interface Channel {
   groups: ChannelGroup[];
   allowFrom: string[];
   streaming?: boolean;
+  sessionRouting?: {
+    discordThreadLifecycle?: {
+      idleHours: number;
+      maxAgeHours?: number;
+    };
+    telegramTopicAware?: boolean;
+  };
   extra?: Record<string, unknown>;
 }
 

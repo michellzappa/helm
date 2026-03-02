@@ -195,6 +195,26 @@ export const system = {
   hostname: "demo.local",
 };
 
+// ── /api/gateway-health ─────────────────────────────────────────────────────
+export const gatewayHealth = {
+  endpoints: ["/health", "/healthz", "/ready", "/readyz"],
+  configuredBaseUrl: "http://127.0.0.1:1111",
+  baseUrlSource: "env" as const,
+  probes: [
+    { endpoint: "/health", url: "http://127.0.0.1:1111/health", ok: true, statusCode: 200, latencyMs: 21 },
+    { endpoint: "/healthz", url: "http://127.0.0.1:1111/healthz", ok: true, statusCode: 200, latencyMs: 18 },
+    { endpoint: "/ready", url: "http://127.0.0.1:1111/ready", ok: true, statusCode: 200, latencyMs: 22 },
+    { endpoint: "/readyz", url: "http://127.0.0.1:1111/readyz", ok: true, statusCode: 200, latencyMs: 20 },
+  ],
+  summary: { available: true, healthy: 4, total: 4 },
+  note: undefined,
+  configPath: {
+    path: "/home/user/.openclaw/openclaw.json",
+    source: "command" as const,
+    command: "openclaw config path",
+  },
+};
+
 // ── /api/weather ────────────────────────────────────────────────────────────
 export const weather = {
   location: "Demo City",

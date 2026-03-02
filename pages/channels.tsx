@@ -212,6 +212,24 @@ export default function ChannelsPage() {
                               <div className="min-w-0">
                                 <div className="truncate">{ch.name}</div>
                                 <div className="text-xs text-muted-foreground font-mono truncate">{ch.id}</div>
+                                {ch.id === "discord" && (
+                                  <div className="text-[10px] text-muted-foreground truncate">
+                                    Thread lifecycle: idle {ch.sessionRouting?.discordThreadLifecycle?.idleHours ?? 24}h
+                                    {typeof ch.sessionRouting?.discordThreadLifecycle?.maxAgeHours === "number"
+                                      ? ` · max ${ch.sessionRouting.discordThreadLifecycle.maxAgeHours}h`
+                                      : ""}
+                                  </div>
+                                )}
+                                {ch.id === "telegram" && (
+                                  <div className="text-[10px] text-muted-foreground truncate">
+                                    Topic-aware sessions:{" "}
+                                    {ch.sessionRouting?.telegramTopicAware === true
+                                      ? "enabled"
+                                      : ch.sessionRouting?.telegramTopicAware === false
+                                        ? "disabled"
+                                        : "not configured"}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TableCell>

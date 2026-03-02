@@ -20,6 +20,11 @@ export default async function handler(
 
     if (ch.telegram) {
       const t = ch.telegram;
+      const topicAwareCandidate =
+        t.sessionRouting?.topicAware ??
+        t.topicAwareSessionRouting ??
+        t.topicAwareTopics ??
+        t.topicAware;
       channels.push({
         id: "telegram", name: "Telegram", enabled: t.enabled ?? true,
         dmPolicy: t.dmPolicy ?? "pairing", groupPolicy: t.groupPolicy ?? "allowlist",
@@ -27,6 +32,10 @@ export default async function handler(
           id, requireMention: cfg.requireMention ?? false, enabled: cfg.enabled ?? true,
         })),
         allowFrom: t.groupAllowFrom || [], streaming: t.streaming ?? false,
+        sessionRouting: {
+          telegramTopicAware:
+            typeof topicAwareCandidate === "boolean" ? topicAwareCandidate : undefined,
+        },
       });
     }
 
@@ -45,6 +54,15 @@ export default async function handler(
 
     if (ch.discord) {
       const d = ch.discord;
+      const lifecycle = d.threadLifecycle ?? d.sessionLifecycle ?? {};
+      const idleHours =
+        typeof lifecycle?.idleHours === "number" && Number.isFinite(lifecycle.idleHours)
+          ? lifecycle.idleHours
+          : 24;
+      const maxAgeHours =
+        typeof lifecycle?.maxAgeHours === "number" && Number.isFinite(lifecycle.maxAgeHours)
+          ? lifecycle.maxAgeHours
+          : undefined;
       channels.push({
         id: "discord", name: "Discord", enabled: d.enabled ?? true,
         dmPolicy: d.dmPolicy ?? "allowlist", groupPolicy: d.groupPolicy ?? "allowlist",
@@ -52,6 +70,9 @@ export default async function handler(
           id, requireMention: cfg.requireMention ?? false,
         })),
         allowFrom: d.allowFrom || [],
+        sessionRouting: {
+          discordThreadLifecycle: { idleHours, maxAgeHours },
+        },
         extra: { streaming: d.streaming ?? "off" },
       });
     }
