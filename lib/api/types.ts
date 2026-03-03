@@ -121,6 +121,13 @@ export interface MemoryActivityData {
   recentTopics: string[];
 }
 
+export interface ErrorEntry {
+  tsMs: number;
+  level: "warn" | "error";
+  subsystem: string;
+  message: string;
+}
+
 export interface ActivityData {
   daily: Array<{
     date: string;
@@ -136,7 +143,12 @@ export interface ActivityData {
   cron: {
     success: number;
     fail: number;
+    total: number;
   };
+  totalEvents: number;
+  logDays: number;
+  logSource: string;
+  errors: ErrorEntry[];
 }
 
 export interface MessagesSummary {

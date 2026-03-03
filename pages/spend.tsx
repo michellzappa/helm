@@ -205,7 +205,7 @@ export default function CostsPage() {
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} interval={4} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => fmtCost(Number(v), currencyInfo.symbol)} />
                   <Tooltip
-                    formatter={(value: number, name: string) => [fmtCost(Number(value ?? 0), currencyInfo.symbol), name]}
+                    formatter={(value) => [fmtCost(Number(value ?? 0), currencyInfo.symbol), ""]}
                     labelFormatter={(_, payload) => payload?.[0]?.payload?.date ?? ""}
                     contentStyle={{ fontSize: 12 }}
                   />

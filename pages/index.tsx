@@ -9,6 +9,7 @@ import { useSettings } from "@/lib/settings-context";
 import { useCachedRefresh } from "@/lib/cache-refresh";
 import { useActivity } from "@/lib/api";
 import { ErrorLog } from "@/components/ActivityCharts";
+import { cn } from "@/lib/utils";
 import {
   WeatherCard,
   SystemCard,
