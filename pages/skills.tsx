@@ -3,13 +3,15 @@ import Layout from "@/components/Layout";
 import { TableFilter } from "@/components/TableFilter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Zap, Cpu, FileCode, Puzzle } from "lucide-react";
+import { Zap, Cpu, FileCode, Puzzle, X } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
 import { sortData, getNextSortDirection, type SortDirection } from "@/lib/sorting";
 import { useState, useEffect } from "react";
 import { useCounts } from "@/lib/counts-context";
+import ReactMarkdown from "react-markdown";
+
 
 interface SkillModelLink {
   skill: string;
@@ -91,6 +93,8 @@ export default function SkillsPage() {
   const [tab, setTab] = useState<LocationTab>("all");
   const [filterQuery, setFilterQuery] = useState("");
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
+  const [skillContent, setSkillContent] = useState<string>("");
+  const [contentLoading, setContentLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -104,9 +108,27 @@ export default function SkillsPage() {
     }).catch(e => { setError(e.message); setLoading(false); });
   }, []);
 
+  // Fetch skill markdown content when selected
+  useEffect(() => {
+    if (!selectedSkill) {
+      setSkillContent("");
+      return;
+    }
+    
+    setContentLoading(true);
+    fetch(`/api/skills/${selectedSkill.name}/content`)
+      .then(r => r.json())
+      .then(data => {
+        setSkillContent(data.content || "No documentation available.");
+      })
+      .catch(() => {
+        setSkillContent("Failed to load skill documentation.");
+      })
+      .finally(() => setContentLoading(false));
+  }, [selectedSkill]);
+
   const getModelsForSkill = (name: string) => {
     const links = modelLinks.filter(l => l.skill === name);
-    // Dedupe by model name
     const seen = new Set<string>();
     return links.filter(l => { if (seen.has(l.model)) return false; seen.add(l.model); return true; });
   };
@@ -158,7 +180,6 @@ export default function SkillsPage() {
               {loading ? <Skeleton className="inline-block h-4 w-32" /> : `${globalCounts?.skills ?? "…"} skills`}
             </p>
           </div>
-
         </div>
 
         {error && (
@@ -167,7 +188,6 @@ export default function SkillsPage() {
           </div>
         )}
 
-        {/* Location filter tabs */}
         <Tabs value={tab} onValueChange={v => setTab(v as LocationTab)}>
           <TabsList>
             {TAB_LABELS.map(t => (
@@ -198,7 +218,6 @@ export default function SkillsPage() {
                   <TableHead>
                     <SortableTableHead column="location" label="Type" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
-
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -268,7 +287,6 @@ export default function SkillsPage() {
                           {typeConf.label}
                         </span>
                       </TableCell>
-
                     </TableRow>
                   );
                 })}
@@ -278,82 +296,74 @@ export default function SkillsPage() {
         )}
       </div>
 
-      {/* Skill detail — Sheet */}
-      <Sheet open={!!selectedSkill} onOpenChange={open => { if (!open) setSelectedSkill(null); }}>
-        <SheetContent side="right" className="w-[90%] sm:max-w-md overflow-y-auto">
-          {selectedSkill && (() => {
-            const typeConf = TYPE_CONFIG[selectedSkill.location];
-            return (
-              <>
-                <SheetHeader className="pb-4">
-                  <SheetTitle className="flex items-center gap-2 pr-8">
-                    <Puzzle className="h-6 w-6 text-muted-foreground shrink-0" />
+      {/* Skill detail — Dialog with Markdown */}
+      <Dialog open={!!selectedSkill} onOpenChange={open => { if (!open) setSelectedSkill(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] p-0">
+          {selectedSkill && (
+            <>
+              <DialogHeader className="px-6 pt-6 pb-4 border-b">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="flex items-center gap-2 text-xl">
+                    <Puzzle className="h-5 w-5 text-muted-foreground shrink-0" />
                     {selectedSkill.name}
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="px-6 pb-6 space-y-5">
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-2">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${typeConf.className ?? ""}`} style={typeConf.style}>
-                      {typeConf.label}
+                  </DialogTitle>
+                  <button
+                    onClick={() => setSelectedSkill(null)}
+                    className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Close</span>
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${TYPE_CONFIG[selectedSkill.location].className ?? ""}`} style={TYPE_CONFIG[selectedSkill.location].style}>
+                    {TYPE_CONFIG[selectedSkill.location].label}
+                  </span>
+                  {selectedSkill.workspace && (
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200">
+                      {selectedSkill.workspace}
                     </span>
-                    {selectedSkill.workspace && (
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                        selectedSkill.workspace === "main"
-                          ? "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-200"
-                          : "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200"
-                      }`}>{selectedSkill.workspace}</span>
-                    )}
-
-                  </div>
-
-                  {/* Description */}
-                  {selectedSkill.description && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Description</p>
-                      <p className="text-sm">{selectedSkill.description}</p>
-                    </div>
                   )}
-
-                  {/* Path */}
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Path</p>
-                    <p className="text-xs font-mono text-muted-foreground break-all bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded">
-                      {selectedSkill.path}
-                    </p>
-                  </div>
-
-                  {/* Scripts */}
-                  {selectedSkill.scripts.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                        Scripts ({selectedSkill.scripts.length})
-                      </p>
-                      <div className="space-y-1.5">
-                        {selectedSkill.scripts.map(s => (
-                          <div key={s} className="flex items-center gap-2 text-xs font-mono bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded border border-gray-200 dark:border-gray-700">
-                            <FileCode className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                            <span className="text-muted-foreground">{s}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* No scripts */}
-                  {selectedSkill.scripts.length === 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Scripts</p>
-                      <p className="text-xs text-muted-foreground italic">No scripts found</p>
-                    </div>
+                  {selectedSkill.status === "disabled" && (
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                      Disabled
+                    </span>
                   )}
                 </div>
-              </>
-            );
-          })()}
-        </SheetContent>
-      </Sheet>
+              </DialogHeader>
+
+              <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
+                {contentLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                ) : (
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{skillContent}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
+
+              {/* Scripts section */}
+              {selectedSkill.scripts.length > 0 && (
+                <div className="px-6 py-4 border-t bg-muted/50">
+                  <h4 className="text-sm font-medium mb-2">Scripts</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSkill.scripts.map(script => (
+                      <code key={script} className="text-xs px-2 py-1 bg-muted rounded">
+                        {script}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

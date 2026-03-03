@@ -1,7 +1,8 @@
 import { PageInfo } from "@/components/PageInfo";
 import Layout from "@/components/Layout";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import ReactMarkdown from "react-markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, FileText, Book, Tag, Settings, Calendar } from "lucide-react";
 import { SortableTableHead } from "@/components/SortableTableHead";
@@ -193,22 +194,26 @@ export default function Memory() {
         )}
       </div>
 
-      {/* Detail dialog */}
-      <Dialog open={!!selected} onOpenChange={open => { if (!open) setSelected(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              {selected && (CATEGORY_ICON[selected.category] ?? <FileText className="h-4 w-4" />)}
-              {selected?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="px-6 pb-6">
-            <pre className="text-xs bg-gray-50 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto font-mono border border-gray-200 dark:border-gray-700 whitespace-pre-wrap break-words">
-              <code>{selected?.content}</code>
-            </pre>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Detail sidebar */}
+      <Sheet open={!!selected} onOpenChange={open => { if (!open) setSelected(null); }}>
+        <SheetContent side="right" className="w-[90%] sm:max-w-xl overflow-y-auto">
+          {selected && (
+            <>
+              <SheetHeader className="pb-4">
+                <SheetTitle className="flex items-center gap-2">
+                  {CATEGORY_ICON[selected.category] ?? <FileText className="h-5 w-5 text-muted-foreground" />}
+                  {selected.name}
+                </SheetTitle>
+              </SheetHeader>
+              <div className="px-6 pb-6">
+                <div className="prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown>{selected.content}</ReactMarkdown>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </Layout>
   );
 }

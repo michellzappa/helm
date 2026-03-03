@@ -43,21 +43,23 @@ export const MENU_ITEMS: {
   icon: React.ElementType;
   countKey?: keyof SidebarCounts;
 }[] = [
+  // Dashboard always first
   { href: "/",               label: "Dashboard",      icon: LayoutDashboard },
+  // Alphabetical order for the rest
   { href: "/activities",     label: "Activities",     icon: Activity                            },
   { href: "/agents",         label: "Agents",         icon: Bot,         countKey: "agents"      },
   { href: "/channels",       label: "Channels",       icon: Radio,       countKey: "channels"    },
   { href: "/credentials",    label: "Credentials",    icon: KeyRound,    countKey: "credentials" },
-  { href: "/crons",           label: "Crons",          icon: Calendar,    countKey: "scheduled"   },
-  { href: "/heartbeats",      label: "Heartbeats",     icon: Heart                           },
+  { href: "/crons",          label: "Crons",          icon: Calendar,    countKey: "scheduled"   },
+  { href: "/docs",           label: "Docs",           icon: FolderOpen,  countKey: "docs"        },
+  { href: "/heartbeats",     label: "Heartbeats",     icon: Heart                           },
   { href: "/memory",         label: "Memory",         icon: Brain,       countKey: "memory"      },
-  { href: "/docs",           label: "Docs",           icon: FolderOpen,    countKey: "docs"        },
-  { href: "/messages",        label: "Messages",       icon: Send,        countKey: "deliveryQueue" },
+  { href: "/messages",       label: "Messages",       icon: Send,        countKey: "deliveryQueue" },
   { href: "/models",         label: "Models",         icon: Cpu,         countKey: "models"      },
   { href: "/nodes",          label: "Nodes",          icon: Server,      countKey: "nodes"       },
+  { href: "/secrets",        label: "Secrets",        icon: Shield                               },
   { href: "/sessions",       label: "Sessions",       icon: History,     countKey: "sessions"    },
   { href: "/skills",         label: "Skills",         icon: Zap,         countKey: "skills"      },
-  { href: "/secrets",        label: "Secrets",        icon: Shield                               },
   { href: "/spend",          label: "Spend",          icon: Euro                                },
   { href: "/workspaces",     label: "Workspaces",     icon: FolderOpen,  countKey: "workspaces"  },
 ];
