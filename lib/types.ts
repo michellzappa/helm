@@ -1,6 +1,7 @@
 export interface SidebarCounts {
   agents: number;
   memory: number;
+  docs: number;
   scheduled: number;
   sessions: number;
   models: number;

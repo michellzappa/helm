@@ -41,6 +41,42 @@ async function countMemory(): Promise<number> {
   return n;
 }
 
+async function countDocs(): Promise<number> {
+  // Count docs — markdown files in workspace root and repos/ that are NOT memory
+  let n = 0;
+  const MEMORY_PATTERNS = [
+    /MEMORY\.md$/i,
+    /AGENTS\.md$/i,
+    /SOUL\.md$/i,
+    /USER\.md$/i,
+    /HEARTBEAT\.md$/i,
+    /202\d-\d{2}-\d{2}\.md$/i, // Daily notes
+  ];
+  
+  // Root workspace .md files (excluding memory)
+  try {
+    const files = await readdir(join(HOME, ".openclaw/workspace"));
+    n += files.filter(f => {
+      if (!f.endsWith(".md")) return false;
+      return !MEMORY_PATTERNS.some(p => p.test(f));
+    }).length;
+  } catch {}
+  
+  // Repos folder
+  try {
+    const repos = await readdir(join(HOME, ".openclaw/workspace/repos"), { withFileTypes: true });
+    for (const repo of repos) {
+      if (!repo.isDirectory()) continue;
+      try {
+        const files = await readdir(join(HOME, ".openclaw/workspace/repos", repo.name));
+        n += files.filter(f => f.endsWith(".md") || f.endsWith(".mdx")).length;
+      } catch {}
+    }
+  } catch {}
+  
+  return n;
+}
+
 async function countCalendar(): Promise<number> {
   try {
     const raw = await readFile(join(HOME, ".openclaw/cron/jobs.json"), "utf-8");
@@ -168,10 +204,11 @@ async function handler(
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const [agents, memory, scheduled, sessions, models, workspaces, nodes, skills, channels, credentials, deliveryQueue] =
+    const [agents, memory, docs, scheduled, sessions, models, workspaces, nodes, skills, channels, credentials, deliveryQueue] =
       await Promise.all([
         countAgents(),
         countMemory(),
+        countDocs(),
         countCalendar(),
         countSessions(),
         countModels(),
@@ -184,7 +221,7 @@ async function handler(
       ]);
 
     res.setHeader("Cache-Control", "s-maxage=30, stale-while-revalidate=60");
-    res.status(200).json({ agents, memory, scheduled, sessions, models, workspaces, nodes, skills, channels, credentials, deliveryQueue });
+    res.status(200).json({ agents, memory, docs, scheduled, sessions, models, workspaces, nodes, skills, channels, credentials, deliveryQueue });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }

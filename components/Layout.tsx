@@ -51,6 +51,7 @@ export const MENU_ITEMS: {
   { href: "/crons",           label: "Crons",          icon: Calendar,    countKey: "scheduled"   },
   { href: "/heartbeats",      label: "Heartbeats",     icon: Heart                           },
   { href: "/memory",         label: "Memory",         icon: Brain,       countKey: "memory"      },
+  { href: "/docs",           label: "Docs",           icon: FolderOpen,    countKey: "docs"        },
   { href: "/messages",        label: "Messages",       icon: Send,        countKey: "deliveryQueue" },
   { href: "/models",         label: "Models",         icon: Cpu,         countKey: "models"      },
   { href: "/nodes",          label: "Nodes",          icon: Server,      countKey: "nodes"       },
