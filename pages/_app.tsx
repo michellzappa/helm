@@ -3,6 +3,7 @@ import Head from "next/head";
 import "@/styles/globals.css";
 import { CountsProvider } from "@/lib/counts-context";
 import { SettingsProvider } from "@/lib/settings-context";
+import { SwrConfigProvider } from "@/lib/swr-config";
 import { ThemeColorApplier } from "@/components/ThemeColorApplier";
 import { ColorModeApplier } from "@/components/ColorModeApplier";
 
@@ -38,11 +39,13 @@ export default function App({ Component, pageProps }: AppProps) {
         />
       </Head>
       <SettingsProvider>
-        <ThemeColorApplier />
-        <ColorModeApplier />
-        <CountsProvider>
-          <Component {...pageProps} />
-        </CountsProvider>
+        <SwrConfigProvider>
+          <ThemeColorApplier />
+          <ColorModeApplier />
+          <CountsProvider>
+            <Component {...pageProps} />
+          </CountsProvider>
+        </SwrConfigProvider>
       </SettingsProvider>
     </>
   );

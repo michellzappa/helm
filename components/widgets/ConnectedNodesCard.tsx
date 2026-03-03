@@ -55,7 +55,7 @@ export function ConnectedNodesCard() {
             return (
               <div
                 key={node.deviceId}
-                title={`${node.name} (${status})`}
+                title={`${node.displayName} (${status})`}
                 className="h-2 w-2 rounded-full"
                 style={{
                   backgroundColor: "var(--theme-accent)",

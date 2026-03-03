@@ -1,10 +1,8 @@
 import os from "os";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
-import type { NextApiRequest, NextApiResponse } from "next";
-import { withDemo } from "../../lib/demo-guard";
-import { workspaceSizes as _demoFixture } from "../../lib/demo-fixtures";
-import { getOrFetch } from "../../lib/server-cache";
+import { createHandler } from "@/lib/api/handler";
+import { workspaceSizes as _demoFixture } from "@/lib/demo-fixtures";
 
 const HOME = os.homedir();
 const ROOT = join(HOME, ".openclaw");
@@ -46,32 +44,25 @@ async function dirSize(path: string, depth = 0): Promise<number> {
   return total;
 }
 
-async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<WorkspaceSize[] | { error: string }>
-) {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+export default createHandler<WorkspaceSize[]>({
+  cacheKey: "api-workspace-sizes",
+  cacheTtlMs: TTL_MS,
+  demoFixture: _demoFixture,
+  handler: async () => {
+    const dirs = await readdir(ROOT, { withFileTypes: true }).catch(() => []);
+    const workspaceDirs = dirs
+      .filter((entry) => entry.isDirectory() && (entry.name === "workspace" || entry.name.startsWith("workspace-")))
+      .map((entry) => entry.name)
+      .sort((a, b) => a.localeCompare(b));
 
-  try {
-    const sizes = await getOrFetch<WorkspaceSize[]>("api-workspace-sizes", TTL_MS, async () => {
-      const dirs = await readdir(ROOT, { withFileTypes: true }).catch(() => []);
-      const workspaceDirs = dirs
-        .filter((entry) => entry.isDirectory() && (entry.name === "workspace" || entry.name.startsWith("workspace-")))
-        .map((entry) => entry.name)
-        .sort((a, b) => a.localeCompare(b));
+    const sizes = await Promise.all(
+      workspaceDirs.map(async (id) => {
+        const path = join(ROOT, id);
+        const sizeBytes = await dirSize(path);
+        return { id, path, sizeBytes };
+      })
+    );
 
-      return Promise.all(
-        workspaceDirs.map(async (id) => {
-          const path = join(ROOT, id);
-          const sizeBytes = await dirSize(path);
-          return { id, path, sizeBytes };
-        })
-      );
-    });
-    res.status(200).json(sizes.sort((a, b) => b.sizeBytes - a.sizeBytes));
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-}
-
-export default withDemo(_demoFixture, handler);
+    return sizes.sort((a, b) => b.sizeBytes - a.sizeBytes);
+  },
+});

@@ -3,7 +3,7 @@ import { readdir, readFile } from "fs/promises";
 import { join } from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, getGlobalSkillsPath } from "../../lib/oc-paths";
+import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, getGlobalSkillsPath } from "../../lib/paths";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { ensureWarmer } from "../../lib/cache-warmer";
 

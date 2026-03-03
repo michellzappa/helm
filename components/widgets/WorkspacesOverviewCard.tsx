@@ -38,9 +38,9 @@ export function WorkspacesOverviewCard() {
       </CardHeader>
       <CardContent className="space-y-2">
         {top.map((ws) => (
-          <div key={ws.name} className="space-y-0.5">
+          <div key={ws.id} className="space-y-0.5">
             <div className="flex justify-between text-[10px]">
-              <span className="text-muted-foreground truncate">{ws.name}</span>
+              <span className="text-muted-foreground truncate">{ws.id}</span>
               <span className="tabular-nums">{fmtSize(ws.sizeBytes)}</span>
             </div>
             <div className="h-2 rounded bg-muted overflow-hidden">

@@ -28,6 +28,7 @@
     "react-dom": "^19.2.4",
     "react-is": "^19.2.4",
     "recharts": "^3.7.0",
+    "swr": "^2.4.1",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {

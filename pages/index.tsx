@@ -59,13 +59,18 @@ const WIDGET_DEFINITIONS = [
 ];
 
 export default function Dashboard() {
+  interface WidgetState {
+    order: string[];
+    hidden: Set<string>;
+  }
+
   const { settings } = useSettings();
   const [editing, setEditing] = useState(false);
   const [showLog, setShowLog] = useState(false);
   const { data: activityData } = useActivity();
   
   // Load saved order/visibility from localStorage or use defaults (alphabetical)
-  const [widgetState, setWidgetState] = useState(() => {
+  const [widgetState, setWidgetState] = useState<WidgetState>(() => {
     const defaultOrder = WIDGET_DEFINITIONS.map(w => w.key).sort();
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('helm-dashboard-widgets');
@@ -117,7 +122,7 @@ export default function Dashboard() {
 
   // Build visible cards in custom order
   const visibleCards = widgetState.order
-    .filter(key => {
+    .filter((key: string) => {
       // Always respect settings overrides for weather/system/tailscale
       const def = WIDGET_DEFINITIONS.find(w => w.key === key);
       if (!def) return false;
@@ -127,7 +132,7 @@ export default function Dashboard() {
       if (key === 'tailscale' && !settings.dashboardCards.tailscale) return false;
       return true;
     })
-    .map(key => WIDGET_DEFINITIONS.find(w => w.key === key))
+    .map((key: string) => WIDGET_DEFINITIONS.find(w => w.key === key))
     .filter(Boolean);
 
   return (
@@ -155,7 +160,7 @@ export default function Dashboard() {
         {/* Dense masonry dashboard cards */}
         {visibleCards.length > 0 ? (
           <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 3xl:columns-6 gap-4 space-y-4">
-            {visibleCards.map(card => (
+            {visibleCards.map((card) => (
               <div key={card!.key} className="break-inside-avoid mb-4">{card!.node}</div>
             ))}
           </div>

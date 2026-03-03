@@ -24,6 +24,11 @@ interface ScheduledTask {
   model?: string;
   status?: string;
   lastError?: string;
+  lastDurationMs?: number;
+  consecutiveErrors?: number;
+  lastDelivered?: number;
+  lastDeliveryStatus?: string;
+  timeoutSeconds?: number;
 }
 
 // LaunchAgent label prefixes to include in the scheduled view.

@@ -391,7 +391,9 @@ export default function ScheduledPage() {
                                 </span>
                               )}
                               {task.lastDelivered === false && task.lastDeliveryStatus && (
-                                <AlertTriangle className="h-3 w-3 text-amber-500" title={`Delivery: ${task.lastDeliveryStatus}`} />
+                                <span title={`Delivery: ${task.lastDeliveryStatus}`}>
+                                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                </span>
                               )}
                             </div>
                           );

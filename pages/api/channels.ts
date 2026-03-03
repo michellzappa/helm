@@ -1,18 +1,15 @@
 import os from "os";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import type { NextApiRequest, NextApiResponse } from "next";
 import type { Channel } from "@/lib/types";
+import { createHandler } from "@/lib/api/handler";
 
 const HOME = os.homedir();
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Channel[] | { error: string }>
-) {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
-
-  try {
+export default createHandler<Channel[]>({
+  cacheKey: "api-channels",
+  cacheTtlMs: 30_000,
+  handler: async () => {
     const raw = await readFile(join(HOME, ".openclaw/openclaw.json"), "utf-8");
     const config = JSON.parse(raw);
     const ch = config.channels || {};
@@ -77,8 +74,6 @@ export default async function handler(
       });
     }
 
-    res.status(200).json(channels);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-}
+    return channels;
+  },
+});

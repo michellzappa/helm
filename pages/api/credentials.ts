@@ -1,8 +1,8 @@
 import os from "os";
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
-import type { NextApiRequest, NextApiResponse } from "next";
 import type { Credential } from "@/lib/types";
+import { createHandler } from "@/lib/api/handler";
 
 const HOME = os.homedir();
 const CREDS_DIR = join(HOME, ".openclaw/credentials");
@@ -42,14 +42,10 @@ async function fileStatus(path: string, ext: string): Promise<{ status: "ok" | "
   }
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Credential[] | { error: string }>
-) {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
-
-  try {
-    // Scan actual files present in the credentials directory
+export default createHandler<Credential[]>({
+  cacheKey: "api-credentials",
+  cacheTtlMs: 30_000,
+  handler: async () => {
     const files = await readdir(CREDS_DIR).catch(() => [] as string[]);
 
     const results: Credential[] = await Promise.all(
@@ -59,7 +55,6 @@ export default async function handler(
           const meta = KNOWN[file];
           const ext = file.endsWith(".env") ? ".env" : ".json";
           const { status, keys } = await fileStatus(join(CREDS_DIR, file), ext);
-          // Derive a readable name from filename if not in KNOWN
           const name = meta?.name ?? file
             .replace(/[-_]/g, " ")
             .replace(/\.(json|env)$/, "")
@@ -76,10 +71,7 @@ export default async function handler(
         })
     );
 
-    // Sort: category asc, name asc
     results.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
-    res.status(200).json(results);
-  } catch (err) {
-    res.status(500).json({ error: (err as Error).message });
-  }
-}
+    return results;
+  },
+});

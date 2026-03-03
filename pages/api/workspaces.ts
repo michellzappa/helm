@@ -1,7 +1,7 @@
 import os from "os";
 import { readdir, stat } from "fs/promises";
 import { join } from "path";
-import type { NextApiRequest, NextApiResponse } from "next";
+import { createHandler } from "@/lib/api/handler";
 
 interface Workspace {
   id: string;
@@ -13,15 +13,10 @@ interface Workspace {
   status: "active" | "archived";
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Workspace[] | { error: string }>
-) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  try {
+export default createHandler<Workspace[]>({
+  cacheKey: "api-workspaces",
+  cacheTtlMs: 30_000,
+  handler: async () => {
     const homeDir = os.homedir();
     const openclawDir = join(homeDir, ".openclaw");
     const workspaces: Workspace[] = [];
@@ -124,12 +119,6 @@ export default async function handler(
       }
       return a.name.localeCompare(b.name);
     });
-
-    res.status(200).json(workspaces);
-  } catch (error) {
-    console.error("[workspaces API] Error:", error);
-    res.status(500).json({
-      error: `Failed to fetch workspaces: ${(error as Error).message}`,
-    });
-  }
-}
+    return workspaces;
+  },
+});

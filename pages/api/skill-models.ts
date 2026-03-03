@@ -1,6 +1,6 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
-import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, OC_CRON_JOBS, getGlobalSkillsPath } from "../../lib/oc-paths";
+import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, OC_CRON_JOBS, getGlobalSkillsPath } from "../../lib/paths";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getOrFetch } from "../../lib/server-cache";
 

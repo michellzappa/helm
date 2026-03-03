@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAutoRefresh } from "@/lib/settings-context";
 import type { ActivityData } from "@/pages/api/activity";
 import { ActivityHistogram } from "./ActivityHistogram";
@@ -13,7 +13,6 @@ interface ActivityChartsProps {
 export function ActivityCharts({ containerRef }: ActivityChartsProps) {
   const [data, setData] = useState<ActivityData | null>(null);
   const [cronJumpSeq, setCronJumpSeq] = useState(0);
-  const autoRefresh = useAutoRefresh();
 
   const fetchData = async () => {
     try {
@@ -25,12 +24,9 @@ export function ActivityCharts({ containerRef }: ActivityChartsProps) {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-    if (!autoRefresh) return;
-    const id = setInterval(fetchData, 30000);
-    return () => clearInterval(id);
-  }, [autoRefresh]);
+  useAutoRefresh(() => {
+    void fetchData();
+  });
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

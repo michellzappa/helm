@@ -1,6 +1,6 @@
 import { readdir, readFile } from "fs/promises";
 import { join } from "path";
-import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, getGlobalSkillsPath } from "../../lib/oc-paths";
+import { OC_WORKSPACE_SKILLS, OC_EXTENSIONS, getGlobalSkillsPath } from "../../lib/paths";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { withDemo } from "../../lib/demo-guard";
 import { skills as _demoFixture } from "../../lib/demo-fixtures";
