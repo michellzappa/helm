@@ -296,16 +296,29 @@ export default function ScheduledPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedTasks.map((task) => (
+                    sortedTasks.map((task) => {
+                      const resolvedStatus = task.status || (task.enabled ? "ok" : "disabled");
+                      const showInlineError = task.type === "cron" && resolvedStatus === "error" && !!task.lastError;
+                      return (
                       <TableRow key={task.id}>
                       <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          {task.type === "cron" ? (
-                            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          ) : (
-                            <Zap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {task.type === "cron" ? (
+                              <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            ) : (
+                              <Zap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            )}
+                            <span className="truncate">{task.name}</span>
+                          </div>
+                          {showInlineError && (
+                            <p
+                              className="text-xs sm:text-sm text-muted-foreground truncate pl-6"
+                              title={task.lastError}
+                            >
+                              {task.lastError}
+                            </p>
                           )}
-                          <span className="truncate">{task.name}</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -349,7 +362,7 @@ export default function ScheduledPage() {
                       </TableCell>
                       <TableCell>
                         {(() => {
-                          const status = task.status || (task.enabled ? "ok" : "disabled");
+                          const status = resolvedStatus;
                           const styles: Record<string, { className?: string; style?: React.CSSProperties }> = {
                             ok: { style: accentFull },
                             error: { style: accentLow },
@@ -385,8 +398,8 @@ export default function ScheduledPage() {
                               >
                                 {labels[status] || status}
                               </span>
-                              {(task.consecutiveErrors ?? 0) > 1 && (
-                                <span className="text-xs text-red-600 dark:text-red-400 font-mono" title={`${task.consecutiveErrors} consecutive errors`}>
+                              {(task.consecutiveErrors ?? 0) > 0 && (
+                                <span className="text-xs font-mono" style={{ color: "var(--theme-accent)", opacity: 0.7 }} title={`${task.consecutiveErrors} consecutive errors`}>
                                   ×{task.consecutiveErrors}
                                 </span>
                               )}
@@ -419,7 +432,8 @@ export default function ScheduledPage() {
                         })()}
                       </TableCell>
                       </TableRow>
-                    ))
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

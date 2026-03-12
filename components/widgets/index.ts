@@ -11,6 +11,7 @@ export { MessageQueueCard } from "./MessageQueueCard";
 export { ActiveModelsCard } from "./ActiveModelsCard";
 export { ConnectedNodesCard } from "./ConnectedNodesCard";
 export { ActiveSessionsCard } from "./ActiveSessionsCard";
+export { ModelHealthCard } from "./ModelHealthCard";
 export { SkillsQuickAccessCard } from "./SkillsQuickAccessCard";
 export { WorkspacesOverviewCard } from "./WorkspacesOverviewCard";
 export { ActivityCard } from "./ActivityCard";

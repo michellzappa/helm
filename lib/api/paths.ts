@@ -32,6 +32,7 @@ export const API_PATHS = {
 
   // Models
   modelUsage: "/api/model-usage",
+  modelHealth: "/api/model-health",
 
   // Nodes
   nodes: "/api/nodes",
