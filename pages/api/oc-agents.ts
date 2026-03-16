@@ -52,7 +52,8 @@ async function handler(
           const id = a.id;
           const workspace = a.workspace || (id === "main" ? defaultWorkspace : join(HOME, `.openclaw/workspace-${id}`));
           const agentDir = a.agentDir || join(HOME, `.openclaw/agents/${id}/agent`);
-          const model = a.model || defaultModel;
+          const rawModel = a.model || defaultModel;
+          const model = typeof rawModel === "object" && rawModel !== null ? (rawModel.primary || "unknown") : String(rawModel);
           const skillCount = Array.isArray(a.skills) ? a.skills.length : 0;
 
           let sessionCount = 0;
