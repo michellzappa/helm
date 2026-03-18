@@ -53,8 +53,8 @@ async function runCommand(cmd: string, args: string[]) {
 }
 
 async function resolveConfigPath() {
-  const attempted = "openclaw config path";
-  const jsonResult = await runCommand("openclaw", ["config", "path", "--json"]);
+  const attempted = "openclaw config file";
+  const jsonResult = await runCommand("openclaw", ["config", "file", "--json"]);
   if (jsonResult.stdout) {
     try {
       const parsed = JSON.parse(jsonResult.stdout);
@@ -67,7 +67,7 @@ async function resolveConfigPath() {
     }
   }
 
-  const plainResult = await runCommand("openclaw", ["config", "path"]);
+  const plainResult = await runCommand("openclaw", ["config", "file"]);
   if (plainResult.stdout) {
     const firstLine = plainResult.stdout.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
     if (firstLine) {

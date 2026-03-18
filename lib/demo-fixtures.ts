@@ -211,7 +211,7 @@ export const gatewayHealth = {
   configPath: {
     path: "/home/user/.openclaw/openclaw.json",
     source: "command" as const,
-    command: "openclaw config path",
+    command: "openclaw config file",
   },
 };
 
