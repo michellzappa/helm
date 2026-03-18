@@ -163,7 +163,7 @@ export default function Dashboard() {
         {/* Dense masonry dashboard cards */}
         {visibleCards.length > 0 ? (
           <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5 3xl:columns-6 gap-4 space-y-4">
-            {visibleCards.map((card) => (
+            {visibleCards.map((card: any) => (
               <div key={card!.key} className="break-inside-avoid mb-4">{card!.node}</div>
             ))}
           </div>
@@ -186,7 +186,7 @@ export default function Dashboard() {
           </button>
           {showLog && (
             <div className="mt-4">
-              <ErrorLog data={activityData} />
+              <ErrorLog data={activityData ?? null} />
             </div>
           )}
         </div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
                 </button>
               </div>
               <div className="p-4 space-y-1">
-                {widgetState.order.map((key, idx) => {
+                {widgetState.order.map((key: string, idx: number) => {
                   const def = WIDGET_DEFINITIONS.find(w => w.key === key);
                   if (!def) return null;
                   const isHidden = widgetState.hidden.has(key);
