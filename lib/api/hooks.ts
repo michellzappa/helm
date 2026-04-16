@@ -13,6 +13,7 @@ import type {
   HeartbeatData,
   MemoryActivityData,
   MessagesSummary,
+  ModelAuthData,
   ModelUsage,
   OcAgent,
   PairedNode,
@@ -67,3 +68,4 @@ export const useSessions = createHook<SessionsData>("sessions");
 export const useWorkspaceSizes = createHook<WorkspaceSize[]>("workspaceSizes");
 export const useSkills = createHook<Skill[]>("skills");
 export const useHeartbeats = createHook<HeartbeatData>("heartbeats");
+export const useModelAuth = createHook<ModelAuthData>("modelAuth");

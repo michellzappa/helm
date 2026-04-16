@@ -18,6 +18,7 @@ export {
   useActivity,
   useMessagesSummary,
   useModelUsage,
+  useModelAuth,
   useNodes,
   useSessions,
   useWorkspaceSizes,

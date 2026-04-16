@@ -195,6 +195,32 @@ export interface HeartbeatData {
   durationMs: number;
 }
 
+export interface OAuthProvider {
+  name: string;
+  effective: string;
+  profileCount: number;
+  oauthCount: number;
+  tokenCount: number;
+  apiKeyCount: number;
+  accounts: string[];
+}
+
+export interface OAuthExpiry {
+  account: string;
+  status: "ok" | "warning" | "critical" | "expired";
+  expiresAt: string | null;
+  expiresInMs: number | null;
+}
+
+export interface ModelAuthData {
+  authStore: string;
+  shellEnv: boolean;
+  providers: OAuthProvider[];
+  oauthAccounts: OAuthExpiry[];
+  hasWarnings: boolean;
+  hasCritical: boolean;
+}
+
 // Generic API response wrapper
 export interface ApiResponse<T> {
   data?: T;

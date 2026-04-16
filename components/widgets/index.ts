@@ -20,3 +20,4 @@ export { ChannelsCard } from "./ChannelsCard";
 export { HeartbeatCard } from "./HeartbeatCard";
 export { PrimaryModelCard } from "./PrimaryModelCard";
 export { WidgetIcon, MetricBar, fmtBytes, fmtUptime, fmtSize, wxIcon, dayLabel, toDisplayTemp, fmtRelativeNextRun } from "./shared";
+export { OAuthStatusCard } from "./OAuthStatusCard";

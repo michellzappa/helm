@@ -25,6 +25,7 @@ import {
   ConnectedNodesCard,
   ActiveSessionsCard,
   ModelHealthCard,
+  OAuthStatusCard,
   SkillsQuickAccessCard,
   WorkspacesOverviewCard,
   ActivityCard,
