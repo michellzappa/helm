@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Send, AlertTriangle } from "lucide-react";
 import { useCachedRefresh } from "@/lib/cache-refresh";
 import { WidgetIcon } from "./shared";
-import type { MessagesSummary } from "@/pages/api/messages-summary";
+import type { MessagesSummary } from "@/lib/api/types";
 
 export function MessageQueueCard() {
   const [mounted, setMounted] = useState(false);

@@ -1,57 +1,47 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { execSync } from "child_process";
-import { withDemo } from "../../lib/demo-guard";
-import { agentsSummary as _demoFixture } from "../../lib/demo-fixtures";
-import { getOrFetch } from "../../lib/server-cache";
+import type { AgentsSummary } from "@/lib/api/types";
+import { withDemo } from "@/lib/demo-guard";
+import { agentsSummary as _demoFixture } from "@/lib/demo-fixtures";
+import { getOrFetch } from "@/lib/server-cache";
 
-export interface AgentsSummary {
-  total: number;
-  defaultAgent: string;
-  recentErrors: number;
-  lastRun?: {
-    agent: string;
-    status: string;
-    time: number;
-  };
-}
+// Re-export so components importing from this file get the type
+export type { AgentsSummary };
 
-function handler(_req: NextApiRequest, res: NextApiResponse) {
+const TTL_MS = 120_000;
+
+async function handler(
+  _req: NextApiRequest,
+  res: NextApiResponse<AgentsSummary | { error: string }>
+) {
   try {
-    void getOrFetch<AgentsSummary>("api-agents-summary", 120_000, async () => {
-      const agentsOutput = execSync("openclaw agents list --json", {
-        encoding: "utf-8",
-        timeout: 5000,
-      });
-      const agents = JSON.parse(agentsOutput);
+    const data = await getOrFetch<AgentsSummary>("api-agents-summary", TTL_MS, async () => {
+      const raw = execSync("openclaw status --json 2>/dev/null", { encoding: "utf-8", timeout: 8000 });
+      const d = JSON.parse(raw);
+      const agentsData = d.agents as any;
+      const agents = agentsData?.agents ?? [];
+      const sessions = d.sessions as any;
+      const recent = sessions?.recent ?? [];
 
-      const sessionsOutput = execSync("openclaw sessions list --json --limit 20", {
-        encoding: "utf-8",
-        timeout: 5000,
-      });
-      const sessions = JSON.parse(sessionsOutput);
+      const recentErrors = recent.filter(
+        (s: any) => s.lastStatus === "error"
+      ).length;
 
-      const recentErrors = sessions.sessions?.filter((s: any) =>
-        s.lastStatus === "error" && Date.now() - (s.lastRunAtMs || 0) < 24 * 60 * 60 * 1000
-      ).length || 0;
-
-      const lastRun = sessions.sessions?.[0] ? {
-        agent: sessions.sessions[0].agentId || "main",
-        status: sessions.sessions[0].lastStatus || "unknown",
-        time: sessions.sessions[0].lastRunAtMs || Date.now(),
-      } : undefined;
+      const lastRun = recent[0]
+        ? { agent: recent[0].agentId ?? "main", status: recent[0].lastStatus ?? "unknown", time: recent[0].updatedAt ?? Date.now() }
+        : undefined;
 
       return {
-        total: agents.agents?.length || 0,
-        defaultAgent: agents.agents?.find((a: any) => a.isDefault)?.id || "main",
+        total: agents.length,
+        defaultAgent: agentsData?.defaultId ?? "main",
         recentErrors,
         lastRun,
       };
-    }).then((data) => res.json(data)).catch((err) => {
-      res.status(500).json({ error: String(err) });
     });
+    res.status(200).json(data);
   } catch (err) {
     res.status(500).json({ error: String(err) });
   }
 }
 
-export default withDemo(_demoFixture, handler);
+export default withDemo(_demoFixture as Parameters<typeof withDemo>[0], handler);

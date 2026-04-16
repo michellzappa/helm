@@ -154,6 +154,12 @@ export interface ActivityData {
 export interface MessagesSummary {
   queued: number;
   stuck: number;
+  recentDeliveries: number;
+  lastDelivery?: {
+    channel: string;
+    time: number;
+    status: string;
+  };
 }
 
 export interface ModelUsage {
