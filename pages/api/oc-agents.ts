@@ -29,6 +29,21 @@ export interface OcAgent {
   bindings: OcBinding[];
 }
 
+async function getTotalSkillCount(): Promise<number> {
+  try {
+    const globalCount = (await readdir(join(HOME, ".openclaw/skills"))).filter(
+      (f) => !f.startsWith(".")
+    ).length;
+    let wsCount = 0;
+    try {
+      wsCount = (await readdir(join(HOME, ".openclaw/workspace/skills"))).filter(
+        (f) => !f.startsWith(".")
+      ).length;
+    } catch { /* no workspace skills */ }
+    return globalCount + wsCount;
+  } catch { return 0; }
+}
+
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse<OcAgent[] | { error: string }>
@@ -46,6 +61,7 @@ async function handler(
 
       const defaultWorkspace = defaults.workspace || join(HOME, ".openclaw/workspace");
       const defaultModel = defaults.model?.primary || "unknown";
+      const totalSkillCount = await getTotalSkillCount();
 
       return Promise.all(
         list.map(async (a: any) => {
@@ -57,7 +73,6 @@ async function handler(
             typeof rawModel === "object" && rawModel !== null
               ? rawModel.primary || "unknown"
               : String(rawModel);
-          const skillCount = Array.isArray(a.skills) ? a.skills.length : 0;
 
           let sessionCount = 0;
           try {
@@ -106,7 +121,7 @@ async function handler(
             model,
             isDefault,
             sessionCount,
-            skillCount,
+            skillCount: totalSkillCount,
             bindings,
           };
         })
